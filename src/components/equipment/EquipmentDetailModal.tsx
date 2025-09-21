@@ -108,6 +108,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       supplier: '',
       status: 'operational' as EquipmentStatus,
       health_percentage: 100,
+      loan_status: false,
       date_mise_en_service: '',
       purchase_date: '',
       warranty_expiry: '',

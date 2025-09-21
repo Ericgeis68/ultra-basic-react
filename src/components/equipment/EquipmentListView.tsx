@@ -233,6 +233,7 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
           {renderSortableHeader('model', 'Modèle', listFields.model)}
           {renderSortableHeader('manufacturer', 'Fabricant', listFields.manufacturer)}
           {renderSortableHeader('status', 'Statut')}
+          <TableHead>Prêt</TableHead>
           {renderSortableHeader('health_percentage', 'Santé', listFields.health_percentage)}
           {renderSortableHeader('inventory_number', 'Inventaire', listFields.inventory_number)}
           {renderSortableHeader('serial_number', 'N° Série', listFields.serial_number)}
@@ -283,6 +284,15 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
                   >
                     {getStatusText(equipment.status)}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  {equipment.loan_status ? (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-300">
+                      En prêt
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Disponible</span>
+                  )}
                 </TableCell>
                 {listFields.health_percentage && (
                   <TableCell>

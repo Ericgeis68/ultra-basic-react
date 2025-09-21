@@ -75,6 +75,7 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({
           <TableHead>Numéro de série</TableHead>
           <TableHead>Groupes</TableHead>
           <TableHead>Statut</TableHead>
+          <TableHead>Prêt</TableHead>
           <TableHead>État de santé</TableHead>
           <TableHead className="w-[100px]">Actions</TableHead>
         </TableRow>
@@ -97,6 +98,15 @@ const EquipmentTable: React.FC<EquipmentTableProps> = ({
               >
                 {getStatusText(equipment.status)}
               </Badge>
+            </TableCell>
+            <TableCell>
+              {equipment.loan_status ? (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-300">
+                  En prêt
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground text-sm">Disponible</span>
+              )}
             </TableCell>
             <TableCell>
               {equipment.health_percentage !== undefined && equipment.health_percentage !== null ? (
