@@ -1,0 +1,43 @@
+// Instructions pour configurer les permissions Android
+
+1. Après avoir exporté le projet sur GitHub et l'avoir cloné localement :
+
+2. Installez les dépendances Capacitor :
+   npm install @capacitor/core @capacitor/cli @capacitor/android
+
+3. Initialisez Capacitor si ce n'est pas déjà fait :
+   npx cap init
+
+4. Ajoutez la plateforme Android :
+   npx cap add android
+
+5. Ouvrez le fichier android/app/src/main/AndroidManifest.xml et assurez-vous que ces permissions sont présentes :
+   <uses-permission android:name="android.permission.INTERNET" />
+   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+   <uses-permission android:name="android.permission.CAMERA" />
+
+6. Assurez-vous que dans MainActivity.java, l'importation et l'initialisation des plugins sont correctes. 
+   Exemple d'ajout (si nécessaire) :
+   
+   // Au début du fichier avec les autres imports
+   import com.getcapacitor.community.camera.preview.CameraPreview;
+   
+   // Dans la méthode this.init() du constructeur
+   registerPlugin(CameraPreview.class);
+
+7. Construisez le projet web et synchronisez avec Capacitor :
+   npm run build
+   npx cap sync
+
+8. Pour tester l'application :
+   npx cap open android
+   ou
+   npx cap run android
+
+9. Lors du premier lancement de l'application, assurez-vous d'accepter la demande de permission d'accès à la caméra.
+
+10. En cas de problème d'accès à la caméra sur les appareils Android :
+    - Vérifiez les permissions dans les paramètres de l'application
+    - Assurez-vous que l'appareil dispose d'une caméra fonctionnelle
+    - Vérifiez que d'autres applications peuvent accéder à la caméra

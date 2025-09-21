@@ -2,57 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 220 13% 18%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 13% 18%;
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 18%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 220 90% 56%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 210 64% 50%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 220 15% 95%;
-    --secondary-foreground: 220 13% 18%;
+    --secondary: 220 16% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 220 15% 95%;
-    --muted-foreground: 220 8% 46%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 220 15% 95%;
-    --accent-foreground: 220 13% 18%;
+    --accent: 210 50% 95%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 210 64% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 210 64% 50%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 50% 95%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 210 64% 50%;
   }
 
   .dark {
@@ -65,8 +54,8 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 210 60% 50%;
+    --primary-foreground: 210 40% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -82,15 +71,16 @@ All colors MUST be HSL.
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --ring: 210 60% 50%;
+
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 60% 50%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 210 60% 50%;
   }
 }
 
@@ -100,6 +90,228 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium tracking-tight;
+  }
+  
+  h1 {
+    @apply text-4xl sm:text-5xl lg:text-6xl;
+  }
+  
+  h2 {
+    @apply text-3xl sm:text-4xl;
+  }
+  
+  h3 {
+    @apply text-2xl sm:text-3xl;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white bg-opacity-70 backdrop-blur-lg border border-white border-opacity-20 shadow-glass;
+  }
+  
+  .nav-item {
+    @apply px-4 py-2 text-sm rounded-lg transition-all duration-200 hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0;
+  }
+  
+  .button-pulse {
+    @apply relative overflow-hidden;
+  }
+  
+  .button-pulse::after {
+    @apply content-[''] absolute inset-0 bg-white opacity-0 transition-opacity duration-500;
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 0; }
+    50% { opacity: 0.1; }
+    100% { opacity: 0; }
+  }
+  
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200;
+  }
+  
+  .sidebar-item-active {
+    @apply bg-primary/10 text-primary;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  .page-transition {
+    @apply animate-fade-in;
+  }
+}
+
+/* Styles d'impression - Aperçu et impression cohérents */
+.print-grid-small .grid { 
+  grid-template-columns: repeat(6, 1fr) !important; 
+}
+.print-grid-medium .grid { 
+  grid-template-columns: repeat(4, 1fr) !important; 
+}
+.print-grid-large .grid { 
+  grid-template-columns: repeat(2, 1fr) !important; 
+}
+
+.print-portrait { max-width: 210mm; }
+.print-landscape { max-width: 297mm; }
+
+@media print {
+  /* Masquer tous les éléments de navigation et interface */
+  body.printing nav,
+  body.printing [data-sidebar],
+  body.printing .sidebar,
+  body.printing header,
+  body.printing .navbar,
+  body.printing .bottom-navigation,
+  body.printing button,
+  body.printing .button,
+  body.printing .btn,
+  body.printing [role="button"],
+  body.printing .dropdown-menu,
+  body.printing .popover,
+  body.printing .dialog,
+  body.printing .modal,
+  body.printing .toast,
+  body.printing .notification,
+  body.printing .toolbar,
+  body.printing .action-buttons,
+  body.printing .filters,
+  body.printing .search-bar,
+  body.printing .toggle-group,
+  body.printing .badge:not(.status-badge),
+  body.printing .pagination,
+  body.printing .scroll-area-scrollbar,
+  body.printing input,
+  body.printing select,
+  body.printing textarea,
+  body.printing .form-control,
+  body.printing [data-testid*="filter"],
+  body.printing [data-testid*="search"],
+  body.printing [data-testid*="button"],
+  body.printing [data-testid*="action"] {
+    display: none !important;
+  }
+
+  /* Réinitialiser les styles pour l'impression */
+  body.printing {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 20px !important;
+  }
+
+  /* Styles pour les cartes d'équipements */
+  body.printing .card,
+  body.printing .equipment-card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 15px !important;
+    border: 1px solid #ccc !important;
+    padding: 10px !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  /* Styles pour les listes */
+  body.printing .equipment-list,
+  body.printing .intervention-list {
+    width: 100% !important;
+  }
+
+  body.printing .equipment-list-item,
+  body.printing .intervention-list-item {
+    border: 1px solid #ccc !important;
+    margin-bottom: 10px !important;
+    padding: 10px !important;
+    background: white !important;
+  }
+
+  /* Styles pour les tableaux */
+  body.printing table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 20px !important;
+  }
+
+  body.printing th,
+  body.printing td {
+    border: 1px solid #ccc !important;
+    padding: 8px !important;
+    text-align: left !important;
+    font-size: 10pt !important;
+  }
+
+  body.printing th {
+    background: #f5f5f5 !important;
+    font-weight: bold !important;
+  }
+
+  /* Styles pour les grilles */
+  body.printing .grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+    gap: 15px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Badges de statut visibles en impression */
+  body.printing .status-badge {
+    display: inline-block !important;
+    padding: 2px 8px !important;
+    border-radius: 12px !important;
+    font-size: 10pt !important;
+    font-weight: normal !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Titres et en-têtes */
+  body.printing h1,
+  body.printing h2,
+  body.printing h3 {
+    color: black !important;
+    margin-bottom: 10px !important;
+    page-break-after: avoid !important;
+  }
+
+  body.printing h1 { font-size: 18pt !important; }
+  body.printing h2 { font-size: 16pt !important; }
+  body.printing h3 { font-size: 14pt !important; }
+
+  /* Éviter les coupures de page dans les éléments importants */
+  body.printing .equipment-card,
+  body.printing .intervention-card,
+  body.printing .equipment-list-item,
+  body.printing .intervention-list-item {
+    page-break-inside: avoid !important;
+  }
+
+  /* Masquer les barres de défilement et autres éléments UI */
+  body.printing ::-webkit-scrollbar,
+  body.printing .scrollbar {
+    display: none !important;
+  }
+
+  /* S'assurer que le contenu principal est visible */
+  body.printing main,
+  body.printing .content,
+  body.printing .equipment-content,
+  body.printing .intervention-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
   }
 }
