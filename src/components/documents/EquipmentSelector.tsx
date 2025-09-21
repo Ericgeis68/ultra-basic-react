@@ -33,8 +33,8 @@ const EquipmentSelector: React.FC<EquipmentSelectorProps> = ({
         ...item,
         status: item.status as EquipmentStatus,
         relationships: (item.relationships as unknown as EquipmentRelationship[]) || [],
-        equipment_group_ids: item.equipment_group_ids || [],
-        associated_group_ids: item.associated_group_ids || []
+        equipment_group_ids: [],
+        associated_group_ids: []
       }));
       
       setEquipments(typedEquipments);

@@ -420,9 +420,14 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
         const { error: insertError } = await supabase
           .from('interventions')
           .insert({
-            ...interventionData,
+            title: interventionData.title || 'Intervention',
+            description: interventionData.description,
             equipment_id: equipment.id,
-            created_at: new Date().toISOString(),
+            status: interventionData.status || 'pending',
+            priority: interventionData.priority || 'medium',
+            assigned_to: interventionData.assigned_to,
+            start_date: interventionData.start_date,
+            end_date: interventionData.end_date,
           });
         error = insertError;
         if (!error) {

@@ -208,7 +208,7 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
             throw new Error(fileUpdateError || "Erreur lors de la mise à jour du fichier.");
           }
           if (updatedOrCreatedDocument && newFileUrl) {
-            updatedOrCreatedDocument = { ...updatedOrCreatedDocument, fileurl: newFileUrl, filename: formData.file.name, size: formData.file.size };
+            updatedOrCreatedDocument = { ...updatedOrCreatedDocument, fileurl: newFileUrl };
           }
         }
 
@@ -339,7 +339,7 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
             )}
             {document?.fileurl && !formData.file && (
               <p className="text-sm text-gray-600">
-                Fichier actuel: <a href={document.fileurl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{document.filename || 'Voir le fichier'}</a>
+                Fichier actuel: <a href={document.fileurl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Voir le fichier</a>
               </p>
             )}
           </div>

@@ -15,6 +15,7 @@ const PDFTestComponent: React.FC = () => {
   const testEquipments: Equipment[] = [
     {
       id: '1',
+      loan_status: false,
       name: 'Ordinateur Portable Dell',
       model: 'Latitude 5520',
       manufacturer: 'Dell',
@@ -38,6 +39,7 @@ const PDFTestComponent: React.FC = () => {
     },
     {
       id: '2',
+      loan_status: true,
       name: 'Imprimante HP LaserJet',
       model: 'Pro M404n',
       manufacturer: 'HP',
