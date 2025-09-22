@@ -26,7 +26,8 @@ export async function fetchEquipmentById(equipmentId: string): Promise<Equipment
       status: data.status as EquipmentStatus,
       relationships: Array.isArray(data.relationships) 
         ? (data.relationships as unknown as EquipmentRelationship[]) 
-        : []
+        : [],
+      loan_status: (data as any).loan_status || false
     };
     console.log(`Fetched equipment:`, validEquipment);
     return validEquipment;

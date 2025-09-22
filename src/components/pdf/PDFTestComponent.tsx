@@ -34,7 +34,8 @@ const PDFTestComponent: React.FC = () => {
       equipment_group_ids: ['group-1'],
       description: 'Ordinateur portable pour le service informatique',
       date_mise_en_service: '2023-01-20',
-      relationships: []
+      relationships: [],
+      loan_status: false
     },
     {
       id: '2',
@@ -57,7 +58,8 @@ const PDFTestComponent: React.FC = () => {
       equipment_group_ids: ['group-2'],
       description: 'Imprimante laser monochrome',
       date_mise_en_service: '2022-06-15',
-      relationships: []
+      relationships: [],
+      loan_status: false
     }
   ];
 

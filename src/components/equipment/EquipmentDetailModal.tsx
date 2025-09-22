@@ -121,6 +121,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       inventory_number: '',
       tag_number: '', // Added tag_number as per schema
       serial_number: '',
+      loan_status: false,
     }
   );
   const [qrSize, setQrSize] = useState(128);
@@ -255,6 +256,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       inventory_number: formData.inventory_number || null,
       serial_number: formData.serial_number || null,
       supplier: formData.supplier || null,
+      loan_status: formData.loan_status || false,
     };
 
      // Ne pas supprimer `associated_group_ids` car nous en avons besoin pour la sauvegarde

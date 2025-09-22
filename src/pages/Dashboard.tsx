@@ -29,7 +29,7 @@ const Dashboard = () => {
 
   // Récupération des vraies données
   const { data: equipments, loading: equipmentsLoading, error: equipmentsError } = useCollection<Equipment>({ tableName: 'equipments' });
-  const { data: maintenances, loading: maintenancesLoading, error: maintenancesError } = useMaintenance();
+  const { maintenances, loading: maintenancesLoading, error: maintenancesError } = useMaintenance();
   const { data: interventions, loading: interventionsLoading, error: interventionsError } = useCollection<any>({ tableName: 'interventions' });
 
 

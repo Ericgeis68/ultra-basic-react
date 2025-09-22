@@ -24,7 +24,7 @@ import { fr } from 'date-fns/locale';
 const AnalyticsOverview = () => {
   // Récupération des vraies données
   const { data: equipments } = useCollection<Equipment>({ tableName: 'equipments' });
-  const { data: maintenances } = useMaintenance();
+  const { maintenances } = useMaintenance();
   const { data: interventions } = useCollection<any>({ tableName: 'interventions' });
 
   // Calcul des données de maintenance par mois (6 derniers mois)
@@ -107,7 +107,7 @@ const AnalyticsOverview = () => {
     }, {} as Record<string, number>);
 
     return Object.entries(departmentCounts)
-      .map(([department, count]) => ({ department, interventions: count }))
+      .map(([department, count]) => ({ department, interventions: Number(count) }))
       .sort((a, b) => b.interventions - a.interventions)
       .slice(0, 5); // Top 5
   }, [interventions, equipments]);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
+import { Equipment } from '@/types/equipment';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import CustomCard from '../ui/CustomCard';
