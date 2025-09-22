@@ -15,7 +15,7 @@ import {
   ChevronUp,
   Wrench,
   Download,
-  Printer,
+  FileText,
   Filter,
   XCircle,
   Loader2
@@ -43,6 +43,7 @@ interface EquipmentHistoryViewProps {
   usersLoading: boolean;
   usersError: any;
   users: any[] | null;
+  equipment: Equipment | null;
   equipmentHistory: EquipmentHistoryEntry[];
   historyLoading: boolean;
   historyError: Error | null;
@@ -94,6 +95,7 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
   usersLoading,
   usersError,
   users,
+  equipment,
   equipmentHistory,
   historyLoading,
   historyError,
@@ -113,7 +115,44 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
   hasActiveModificationFilters
 }) => {
   const getInterventionStatusBadge = (status: string) => {
-    switch (status) {
+    // Normaliser le statut pour gérer les variations
+    const normalizedStatus = status?.toLowerCase() || '';
+    
+    // Gérer les cas où le statut arrive déjà en français
+    if (normalizedStatus.includes('en cours') || normalizedStatus.includes('cours')) {
+      return (
+        <Badge variant="outline" className="border-blue-500 text-blue-500 flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          En cours
+        </Badge>
+      );
+    }
+    if (normalizedStatus.includes('terminé') || normalizedStatus.includes('termine')) {
+      return (
+        <Badge variant="outline" className="border-green-500 text-green-500 flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          Terminé
+        </Badge>
+      );
+    }
+    if (normalizedStatus.includes('planifié') || normalizedStatus.includes('planifie')) {
+      return (
+        <Badge variant="outline" className="border-purple-500 text-purple-500 flex items-center gap-1">
+          <Calendar className="h-3 w-3" />
+          Planifié
+        </Badge>
+      );
+    }
+    if (normalizedStatus.includes('annulé') || normalizedStatus.includes('annule')) {
+      return (
+        <Badge variant="outline" className="border-red-500 text-red-500 flex items-center gap-1">
+          <XCircle className="h-3 w-3" />
+          Annulé
+        </Badge>
+      );
+    }
+    
+    switch (normalizedStatus) {
       case 'completed':
         return (
           <Badge variant="outline" className="border-green-500 text-green-500 flex items-center gap-1">
@@ -121,6 +160,7 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
             Terminé
           </Badge>
         );
+      case 'in_progress':
       case 'in-progress':
         return (
           <Badge variant="outline" className="border-blue-500 text-blue-500 flex items-center gap-1">
@@ -135,13 +175,27 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
             Planifié
           </Badge>
         );
+      case 'cancelled':
+        return (
+          <Badge variant="outline" className="border-red-500 text-red-500 flex items-center gap-1">
+            <XCircle className="h-3 w-3" />
+            Annulé
+          </Badge>
+        );
       default:
-        return null;
+        return (
+          <Badge variant="outline" className="border-gray-500 text-gray-500 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {status || 'Inconnu'}
+          </Badge>
+        );
     }
   };
 
   const getInterventionTypeBadge = (type: string) => {
-    switch (type) {
+    // Normaliser le type pour gérer les variations
+    const normalizedType = type?.toLowerCase() || '';
+    switch (normalizedType) {
       case 'preventive':
         return (
           <Badge variant="outline" className="bg-primary/10 border-primary text-primary">
@@ -166,8 +220,18 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
             Réglementaire
           </Badge>
         );
+      case 'inspection':
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 border-blue-500 text-blue-500">
+            Inspection
+          </Badge>
+        );
       default:
-        return null;
+        return (
+          <Badge variant="outline" className="bg-gray-500/10 border-gray-500 text-gray-500">
+            {type || 'Inconnu'}
+          </Badge>
+        );
     }
   };
 
@@ -223,60 +287,250 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
     }
   };
 
-  const handlePrintAllInterventions = () => {
-    if (!interventions || interventions.length === 0) {
-      toast({
-        title: "Aucune intervention",
-        description: "Il n'y a aucune intervention à imprimer pour cet équipement.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  // Fonction pour l'export PDF standard
+  const handleExportToPDF = async (intervention: any) => {
     try {
-      // Convert InterventionUI to the format expected by generateInterventionsPDF
-      const convertedInterventions = interventions.map(intervention => ({
-        ...intervention,
-        equipmentId: intervention.equipmentId || '',
-        equipmentName: intervention.equipmentName || 'Équipement inconnu',
-        buildingName: intervention.buildingName || '',
-        createdAt: intervention.createdAt || new Date().toISOString(),
-        created_at: intervention.createdAt || new Date().toISOString(),
-        completedDate: intervention.completedDate || undefined,
-        title: intervention.title || 'Intervention sans titre',
-        type: (intervention.type as "preventive" | "corrective" | "improvement" | "regulatory") || 'corrective',
-        status: (intervention.status as "in-progress" | "completed") || 'in-progress',
-      }));
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      // Créer un élément temporaire pour l'aperçu
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '210mm';
+      tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.padding = '4px 20px 20px 20px';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      tempDiv.style.fontSize = '12px';
+      tempDiv.style.lineHeight = '1.4';
+      document.body.appendChild(tempDiv);
 
-      generateInterventionsPDF(convertedInterventions as any, {
-        equipments: [],
-        printOptions: {
-          includeDetails: true,
-          includeTechnicians: true,
-          includeParts: true,
-          includeHistory: true,
-          format: 'list',
-        },
-        filters: {}
+      // Générer le contenu HTML de l'intervention
+      const equipmentName = equipment?.name || 'Équipement inconnu';
+      
+      // Fonctions utilitaires pour les textes (synchronisées avec Interventions.tsx)
+      const getInterventionStatusText = (status: string) => {
+        switch (status) {
+          case 'in-progress': return 'En cours d\'exécution';
+          case 'completed': return 'Terminée avec succès';
+          case 'planned': return 'Planifiée';
+          case 'cancelled': return 'Annulée';
+          default: return status;
+        }
+      };
+
+      const getInterventionTypeText = (type: string) => {
+        switch (type) {
+          case 'preventive': return 'Maintenance Préventive';
+          case 'corrective': return 'Maintenance Corrective';
+          case 'improvement': return 'Amélioration';
+          case 'regulatory': return 'Contrôle Réglementaire';
+          default: return type;
+        }
+      };
+      
+      tempDiv.innerHTML = `
+        <div style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 0 20px 20px 20px; margin: 0;">
+          <!-- Titre principal -->
+          <div style="text-align: center; border-bottom: 3px solid #000; padding-bottom: 12px; margin-bottom: 20px; margin-top: 0;">
+            <h1 style="font-size: 32px; font-weight: 900; margin: 0; color: #000; letter-spacing: 1px;">Rapport d'intervention</h1>
+          </div>
+          <!-- En-tête de la carte -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; width: 100%;">
+            <div style="flex: 1; max-width: 70%; word-wrap: break-word;">
+              <h1 style="font-size: 26px; font-weight: 800; margin: 0 0 8px 0; color: #000; word-wrap: break-word; overflow-wrap: break-word;">${intervention.title || 'Sans titre'}</h1>
+              <span style="background: #f3f4f6; color: #374151; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                ${getInterventionTypeText(intervention.type)}
+              </span>
+            </div>
+            <span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+              ${getInterventionStatusText(intervention.status)}
+            </span>
+          </div>
+
+          <!-- Section Informations générales -->
+          <div style="background: #f9fafb; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 20px; height: 20px; background: #6b7280; border-radius: 4px; margin-right: 8px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 12px;">📅</span>
+              </div>
+              <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #000;">Informations générales</h3>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+              <div><strong>Équipement:</strong> ${equipmentName}</div>
+              <div><strong>Modèle:</strong> ${equipment?.model || 'Non défini'}</div>
+              <div><strong>N° de série:</strong> ${equipment?.serial_number || 'Non défini'}</div>
+              <div style="text-align: right;"><strong>Date planifiée:</strong> ${intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}</div>
+            </div>
+          </div>
+
+          <!-- Section Techniciens assignés -->
+          <div style="background: #eff6ff; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 20px; height: 20px; background: #3b82f6; border-radius: 4px; margin-right: 8px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 12px;">👤</span>
+              </div>
+              <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #000;">Techniciens assignés</h3>
+            </div>
+            <div style="font-size: 12px;">
+              ${intervention.technicians && intervention.technicians.length > 0 
+                ? intervention.technicians.map(tech => `<div>• ${tech}</div>`).join('')
+                : '<div>Aucun technicien assigné</div>'
+              }
+            </div>
+          </div>
+
+          <!-- Section Actions réalisées -->
+          <div style="background: #fef3c7; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 20px; height: 20px; background: #f59e0b; border-radius: 4px; margin-right: 8px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 12px;">🔧</span>
+              </div>
+              <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #000;">Actions réalisées</h3>
+            </div>
+            <div style="font-size: 12px;">
+              ${intervention.actions || 'Aucune action réalisée'}
+            </div>
+          </div>
+
+          <!-- Section Pièces utilisées -->
+          <div style="background: #f3e8ff; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 20px; height: 20px; background: #8b5cf6; border-radius: 4px; margin-right: 8px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 12px;">🏷️</span>
+              </div>
+              <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #000;">Pièces utilisées</h3>
+            </div>
+            <div style="font-size: 12px;">
+              ${intervention.parts && intervention.parts.length > 0 
+                ? intervention.parts.map(part => `<div>• ${part.name} (Quantité: ${part.quantity})</div>`).join('')
+                : 'Aucune pièce utilisée'
+              }
+            </div>
+          </div>
+
+          <!-- Historique des techniciens si disponible -->
+          ${intervention.technician_history && intervention.technician_history.length > 0 ? `
+          <div style="background: #f1f5f9; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 20px; height: 20px; background: #64748b; border-radius: 4px; margin-right: 8px; display: flex; align-items: center; justify-content: center;">
+                <span style="color: white; font-size: 12px;">🕒</span>
+              </div>
+              <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #000;">Historique des interventions</h3>
+            </div>
+            <div style="font-size: 12px;">
+              ${intervention.technician_history.map((entry: any, index: number) => `
+                <div style="border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: white;">
+                  <div style="font-weight: 600; margin-bottom: 4px;">${index + 1}. ${entry.technician_name || 'Technicien inconnu'}</div>
+                  <div style="color: #64748b; font-size: 11px; margin-bottom: 4px;">
+                    ${entry.date_start ? new Date(entry.date_start).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                    ${entry.date_end ? ` → ${new Date(entry.date_end).toLocaleDateString('fr-FR')}` : ' (En cours)'}
+                  </div>
+                  ${entry.actions ? `<div style="margin: 4px 0;"><strong>Actions:</strong> ${entry.actions}</div>` : ''}
+                  ${entry.parts_used && entry.parts_used.length > 0 ? `
+                    <div style="margin: 4px 0;"><strong>Pièces utilisées:</strong></div>
+                    ${entry.parts_used.map((part: any) => `<div style="margin-left: 10px;">• ${part.name} (Quantité: ${part.quantity})</div>`).join('')}
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Pied de page -->
+          <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 10px;">
+            Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+          </div>
+        </div>
+      `;
+
+      // Capturer l'élément avec html2canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: tempDiv.scrollWidth,
+        height: tempDiv.scrollHeight
       });
+
+      // Nettoyer l'élément temporaire
+      document.body.removeChild(tempDiv);
+
+      // Créer le PDF
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Calculer les dimensions pour ajuster l'image au PDF
+      const ratio = Math.min(pdfWidth / (imgWidth * 0.264583), pdfHeight / (imgHeight * 0.264583));
+      const adjustedWidth = imgWidth * 0.264583 * ratio;
+      const adjustedHeight = imgHeight * 0.264583 * ratio;
+      
+      // Centrer l'image sur la page
+      const xOffset = (pdfWidth - adjustedWidth) / 2;
+      const yOffset = (pdfHeight - adjustedHeight) / 2;
+
+      pdf.addImage(imgData, 'JPEG', xOffset, yOffset, adjustedWidth, adjustedHeight);
+      
+      // Télécharger le PDF
+      const fileName = `intervention_${intervention.id}_${(intervention.title || 'sans_titre').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      pdf.save(fileName);
 
       toast({
         title: "PDF généré",
-        description: `Toutes les interventions (${interventions.length}) ont été exportées en PDF.`,
+        description: "La fiche d'intervention a été téléchargée en PDF.",
       });
-    } catch (error) {
-      console.error('Erreur lors de la génération du PDF global:', error);
+    } catch (error: any) {
+      console.error('Erreur lors de la génération du PDF:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de générer le PDF de toutes les interventions.",
-        variant: "destructive",
+        description: "Impossible de générer le PDF de l'intervention.",
+        variant: "destructive"
       });
     }
   };
 
-  const handlePrintIntervention = (intervention: any) => {
+  // Fonction pour l'export PDF au format carte (vert)
+  const generateInterventionPDFCard = async (intervention: any) => {
     try {
-      const enrichedIntervention = enrichInterventionData(intervention);
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '210mm';
+      tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.padding = '4px 20px 20px 20px';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      tempDiv.style.fontSize = '12px';
+      tempDiv.style.lineHeight = '1.4';
+      document.body.appendChild(tempDiv);
+
+      const equipmentName = equipment?.name || 'Équipement inconnu';
+      
+      // Fonctions utilitaires pour les textes (synchronisées avec Interventions.tsx)
+      const getInterventionStatusText = (status: string) => {
+        switch (status) {
+          case 'in-progress': return 'En cours d\'exécution';
+          case 'completed': return 'Terminée avec succès';
+          case 'planned': return 'Planifiée';
+          case 'cancelled': return 'Annulée';
+          default: return status;
+        }
+      };
 
       const getInterventionTypeText = (type: string) => {
         switch (type) {
@@ -288,76 +542,140 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
         }
       };
 
-      const getInterventionStatusText = (status: string) => {
-        switch (status) {
-          case 'planned': return 'Planifiée';
-          case 'in-progress': return 'En cours d\'exécution';
-          case 'completed': return 'Terminée avec succès';
-          default: return status;
-        }
+      const cleanTechnicianNames = (technicians: any) => {
+        if (!technicians || technicians.length === 0) return 'Aucun technicien assigné';
+        return technicians.join(', ');
       };
-
-      const printContent = `
-        <html>
-          <head>
-            <title>Fiche d'intervention - ${enrichedIntervention.title || 'Sans titre'}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
-              .header { border-bottom: 2px solid #ccc; margin-bottom: 20px; padding-bottom: 10px; }
-              .section { margin-bottom: 20px; }
-              .section-title { font-size: 16px; font-weight: bold; color: #3b82f6; margin-bottom: 10px; }
-              .field { margin-bottom: 6px; }
-              .field-label { font-weight: bold; }
-              .history-entry { border-left: 2px solid #3b82f6; padding-left: 10px; margin-bottom: 10px; }
-              @media print {
-                body { margin: 0; }
-                .no-print { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>FICHE D'INTERVENTION</h1>
+      
+      tempDiv.innerHTML = `
+        <div class="print-content" style="height: 100vh; display: flex; flex-direction: column;">
+          <div class="print-header border-b-2 border-gray-300 pb-4 mb-4" style="flex-shrink: 0;">
+            <h1 class="text-4xl font-black text-center text-black mb-2">Rapport d'intervention</h1>
+          </div>
+          <div class="flex-1" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="intervention-card border rounded-lg bg-white shadow-sm flex-1" style="display: flex; flex-direction: column; overflow: hidden;">
+              <div class="p-4 pb-3 flex-shrink-0">
+                <div class="flex items-start justify-between mb-3" style="width: 100%;">
+                  <h3 class="font-extrabold text-xl text-black" style="flex: 1; word-wrap: break-word; overflow-wrap: break-word; max-width: 70%;">${intervention.title || 'Sans titre'}</h3>
+                  <span class="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">${getInterventionStatusText(intervention.status)}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="inline-flex items-center rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground text-sm px-3 py-1">${getInterventionTypeText(intervention.type)}</div>
+                </div>
+              </div>
+              <div class="px-4 pb-4 space-y-3 flex-1 overflow-auto" style="min-height: 0px;">
+                        <div>
+                          <h4 class="font-semibold text-sm text-gray-800 mb-2">Informations générales</h4>
+                          <div class="space-y-1 text-sm">
+                            <p><strong>Équipement:</strong> ${equipmentName}</p>
+                            <p><strong>Date d'intervention:</strong> ${intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 class="font-semibold text-sm text-gray-800 mb-2 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user h-4 w-4">
+                              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                              <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            Techniciens
+                          </h4>
+                          <div class="text-sm">
+                            <p>${cleanTechnicianNames(intervention.technicians)}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 class="font-semibold text-sm text-gray-800 mb-2 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar h-4 w-4">
+                              <path d="M8 2v4"></path>
+                              <path d="M16 2v4"></path>
+                              <rect width="18" height="18" x="3" y="4" rx="2"></rect>
+                              <path d="M3 10h18"></path>
+                            </svg>
+                            Historique des actions
+                          </h4>
+                          <div class="text-sm space-y-3">
+                            ${intervention.technician_history && intervention.technician_history.length > 0 ? 
+                              intervention.technician_history.map((entry: any, index: number) => `
+                                <div class="border-l-4 border-blue-200 pl-3">
+                                  <div class="font-medium text-gray-800 break-words">${entry.technician_name || 'Technicien inconnu'}</div>
+                                  <div class="text-gray-600 break-words whitespace-pre-wrap" style="font-size: 14px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word;">${entry.actions || ''}</div>
+                                  <div class="text-gray-500 text-xs">${entry.date_start ? new Date(entry.date_start).toLocaleDateString('fr-FR') : 'Date inconnue'}</div>
+                                </div>
+                              `).join('') : 
+                              '<div class="border-l-4 border-blue-200 pl-3"><div class="font-medium text-gray-800 break-words">Aucun historique</div></div>'
+                            }
+                          </div>
+                        </div>
+                        <div>
+                          <h4 class="font-semibold text-sm text-gray-800 mb-2">Pièces utilisées</h4>
+                          <div class="text-sm">
+                            <p>${intervention.parts && intervention.parts.length > 0 ? 
+                              intervention.parts.map(part => `${part.name} (${part.quantity})`).join(', ') : 
+                              'Aucune pièce utilisée'
+                            }</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="section">
-              <div class="section-title">INFORMATIONS GÉNÉRALES</div>
-              <div class="field"><span class="field-label">ID :</span> ${enrichedIntervention.id}</div>
-              <div class="field"><span class="field-label">Titre :</span> ${enrichedIntervention.title || 'Sans titre'}</div>
-              <div class="field"><span class="field-label">Type :</span> ${getInterventionTypeText(enrichedIntervention.type)}</div>
-              <div class="field"><span class="field-label">Statut :</span> ${getInterventionStatusText(enrichedIntervention.status || 'planned')}</div>
-              <div class="field"><span class="field-label">Date d'intervention :</span> ${enrichedIntervention.scheduled_date}</div>
-            </div>
-            <div style="margin-top: 40px; font-size: 12px; color: #666;">
-              Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
-            </div>
-          </body>
-        </html>
+          </div>
+        </div>
       `;
 
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(printContent);
-        printWindow.document.close();
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: tempDiv.scrollWidth,
+        height: tempDiv.scrollHeight
+      });
 
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 500);
-      }
+      document.body.removeChild(tempDiv);
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      const ratio = Math.min(pdfWidth / (imgWidth * 0.264583), pdfHeight / (imgHeight * 0.264583));
+      const adjustedWidth = imgWidth * 0.264583 * ratio;
+      const adjustedHeight = imgHeight * 0.264583 * ratio;
+      
+      const xOffset = (pdfWidth - adjustedWidth) / 2;
+      const yOffset = (pdfHeight - adjustedHeight) / 2;
+
+      pdf.addImage(imgData, 'JPEG', xOffset, yOffset, adjustedWidth, adjustedHeight);
+      
+      const fileName = `intervention_card_${intervention.id}_${(intervention.title || 'sans_titre').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      pdf.save(fileName);
 
       toast({
-        title: "Impression lancée",
-        description: "Le dialogue d'impression a été ouvert.",
+        title: "PDF généré",
+        description: "La fiche d'intervention au format carte a été téléchargée en PDF.",
       });
-    } catch (error) {
-      console.error('Erreur lors de l\'impression:', error);
+    } catch (error: any) {
+      console.error('Erreur lors de la génération du PDF:', error);
       toast({
         title: "Erreur",
-        description: "Impossible d'ouvrir le dialogue d'impression.",
-        variant: "destructive",
+        description: "Impossible de générer le PDF de l'intervention.",
+        variant: "destructive"
       });
     }
   };
+
+
 
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return '';
@@ -420,18 +738,6 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
           >
             Modifications
           </Button>
-          {historyViewMode === 'interventions' && interventions && interventions.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs px-2 py-1 h-auto"
-              onClick={handlePrintAllInterventions}
-              title="Imprimer toutes les interventions"
-            >
-              <Printer className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-              Tout imprimer
-            </Button>
-          )}
           <Popover open={historyViewMode === 'interventions' ? isInterventionFilterOpen : isModificationFilterOpen} onOpenChange={historyViewMode === 'interventions' ? setIsInterventionFilterOpen : setIsModificationFilterOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -589,20 +895,20 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleExportInterventionPDF(intervention)}
+                        onClick={() => handleExportToPDF(intervention)}
                         title="Exporter en PDF"
                         className="text-primary hover:bg-primary/10"
                       >
-                        <Download className="h-4 w-4" />
+                        <FileText className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handlePrintIntervention(intervention)}
-                        title="Imprimer"
-                        className="text-primary hover:bg-primary/10"
+                        onClick={() => generateInterventionPDFCard(intervention)}
+                        title="Exporter PDF Carte"
+                        className="text-green-600 hover:bg-green-100"
                       >
-                        <Printer className="h-4 w-4" />
+                        <FileText className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Equipment } from '@/types/equipment';
 import { EquipmentGroup } from '@/types/equipmentGroup';
 import { Building } from '@/types/building';
@@ -26,6 +26,9 @@ interface EquipmentListViewProps {
   services?: Service[];
   locations?: Location[];
   onEquipmentClick: (equipment: Equipment) => void;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+  onSortChange: (column: string) => void;
 }
 
 const EquipmentListView: React.FC<EquipmentListViewProps> = ({ 
@@ -34,11 +37,12 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
   buildings = [],
   services = [],
   locations = [],
-  onEquipmentClick 
+  onEquipmentClick,
+  sortColumn,
+  sortDirection,
+  onSortChange
 }) => {
   const { listFields } = useEquipmentFieldVisibility();
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -153,58 +157,9 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
   };
 
   const handleSort = (columnKey: string) => {
-    if (sortColumn === columnKey) {
-      setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection('asc');
-    }
+    onSortChange(columnKey);
   };
 
-  const sortedEquipments = useMemo(() => {
-    if (!sortColumn) {
-      return equipments;
-    }
-
-    const sortableEquipments = [...equipments];
-
-    return sortableEquipments.sort((a, b) => {
-      const valA = getColumnValue(a, sortColumn);
-      const valB = getColumnValue(b, sortColumn);
-
-      // Handle null/undefined/empty string values for sorting
-      const normalizedValA = valA === null || valA === undefined || valA === '' || valA === 'Non spécifié' || valA === 'Aucun groupe' ? null : valA;
-      const normalizedValB = valB === null || valB === undefined || valB === '' || valB === 'Non spécifié' || valB === 'Aucun groupe' ? null : valB;
-
-      if (normalizedValA === null && normalizedValB === null) return 0;
-      if (normalizedValA === null) return sortDirection === 'asc' ? 1 : -1;
-      if (normalizedValB === null) return sortDirection === 'asc' ? -1 : 1;
-
-      // Special handling for numbers (e.g., health_percentage) and dates
-      if (sortColumn === 'health_percentage') {
-        const numA = normalizedValA as number;
-        const numB = normalizedValB as number;
-        return sortDirection === 'asc' ? numA - numB : numB - numA;
-      }
-      if (['purchase_date', 'warranty_expiry', 'date_mise_en_service'].includes(sortColumn)) {
-        const dateA = new Date(normalizedValA as string).getTime();
-        const dateB = new Date(normalizedValB as string).getTime();
-        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-      }
-
-      // Default to string comparison
-      const strA = String(normalizedValA).toLowerCase();
-      const strB = String(normalizedValB).toLowerCase();
-
-      if (strA < strB) {
-        return sortDirection === 'asc' ? -1 : 1;
-      }
-      if (strA > strB) {
-        return sortDirection === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
-  }, [equipments, sortColumn, sortDirection, buildings, services, locations, groups]);
 
   const renderSortableHeader = (columnKey: string, label: string, isVisible: boolean = true) => {
     if (!isVisible) return null;
@@ -233,7 +188,6 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
           {renderSortableHeader('model', 'Modèle', listFields.model)}
           {renderSortableHeader('manufacturer', 'Fabricant', listFields.manufacturer)}
           {renderSortableHeader('status', 'Statut')}
-          <TableHead>Prêt</TableHead>
           {renderSortableHeader('health_percentage', 'Santé', listFields.health_percentage)}
           {renderSortableHeader('inventory_number', 'Inventaire', listFields.inventory_number)}
           {renderSortableHeader('serial_number', 'N° Série', listFields.serial_number)}
@@ -251,8 +205,8 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sortedEquipments && sortedEquipments.length > 0 ? (
-          sortedEquipments.map(equipment => {
+        {equipments && equipments.length > 0 ? (
+          equipments.map(equipment => {
             const imageUrl = getImageUrlToDisplay(equipment);
             
             return (
@@ -284,15 +238,6 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
                   >
                     {getStatusText(equipment.status)}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  {equipment.loan_status ? (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-300">
-                      En prêt
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Disponible</span>
-                  )}
                 </TableCell>
                 {listFields.health_percentage && (
                   <TableCell>

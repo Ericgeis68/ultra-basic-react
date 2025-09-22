@@ -189,7 +189,7 @@ const EquipmentPage: React.FC = () => {
       groupNames: equipment.associated_group_ids?.map(id => groupMap.get(id)).filter((name): name is string => !!name) || [],
     }));
 
-    return enriched.filter(equipment => {
+    const filtered = enriched.filter(equipment => {
       const matchesSearch = searchTerm === '' ||
         equipment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         equipment.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -213,6 +213,9 @@ const EquipmentPage: React.FC = () => {
 
       return matchesSearch && matchesName && matchesModel && matchesStatus && matchesGroup && matchesBuilding && matchesService && matchesLocation && matchesSupplier && matchesManufacturer && matchesUF;
     });
+
+
+    return filtered;
   }, [
     enrichedEquipments, searchTerm, filterName, filterModel, filterStatus, filterGroup,
     filterBuilding, filterService, filterLocation, filterSupplier, filterManufacturer, filterUF,
@@ -678,15 +681,39 @@ const EquipmentPage: React.FC = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Gestion des Équipements</h1>
 
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <div className="flex items-center gap-2 flex-grow w-full md:w-auto">
-          <div className="relative flex-grow">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher équipement..."
-              className="pl-8 w-full"
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-3">
+        <div className="flex items-center gap-2 flex-grow w-full lg:w-auto min-w-0">
+          <div className="relative flex-grow min-w-0">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-500 pointer-events-none" />
+            <input 
+              type="text" 
+              placeholder="Rechercher..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                minWidth: '150px',
+                maxWidth: '300px',
+                height: '32px',
+                paddingLeft: '32px',
+                paddingRight: '8px',
+                paddingTop: '4px',
+                paddingBottom: '4px',
+                border: '1px solid #d1d5db',
+                backgroundColor: 'white',
+                color: 'black',
+                fontSize: '14px',
+                borderRadius: '6px',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#3b82f6';
+                e.target.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
             />
           </div>
           <EquipmentFilter
@@ -726,12 +753,13 @@ const EquipmentPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-1 w-full lg:w-auto flex-shrink-0">
            <div className="flex w-full sm:w-auto">
              <Button
                variant={viewMode === 'list' ? 'secondary' : 'outline'}
                onClick={() => setViewMode('list')}
                className="rounded-r-none flex-1 sm:flex-none"
+               size="sm"
              >
                <List className="h-4 w-4" />
              </Button>
@@ -739,6 +767,7 @@ const EquipmentPage: React.FC = () => {
                variant={viewMode === 'grid' ? 'secondary' : 'outline'}
                onClick={() => setViewMode('grid')}
                className="rounded-l-none flex-1 sm:flex-none"
+               size="sm"
              >
                <Grid className="h-4 w-4" />
              </Button>
@@ -746,7 +775,7 @@ const EquipmentPage: React.FC = () => {
 
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto" size="sm">
                 <ListFilter className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Trier</span>
                 {sortColumn && (
@@ -776,24 +805,28 @@ const EquipmentPage: React.FC = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-           <Button onClick={handlePrintEquipments} variant="outline" className="w-full sm:w-auto">
-             <FileDown className="mr-2 h-4 w-4" />
-             Exporter PDF
+           <Button onClick={handlePrintEquipments} variant="outline" className="w-full sm:w-auto" size="sm">
+             <FileDown className="mr-1 h-3 w-3" />
+             <span className="hidden lg:inline">Exporter PDF</span>
+             <span className="lg:hidden">PDF</span>
            </Button>
 
-           <Button onClick={handleExportToExcel} variant="outline" className="w-full sm:w-auto">
-             <FileSpreadsheet className="mr-2 h-4 w-4" />
-             Exporter Excel
+           <Button onClick={handleExportToExcel} variant="outline" className="w-full sm:w-auto" size="sm">
+             <FileSpreadsheet className="mr-1 h-3 w-3" />
+             <span className="hidden lg:inline">Exporter Excel</span>
+             <span className="lg:hidden">Excel</span>
            </Button>
 
-           <Button onClick={handleScanButtonClick} className="w-full sm:w-auto">
-             <QrCode className="mr-2 h-4 w-4" />
-             Scanner QR
+           <Button onClick={handleScanButtonClick} className="w-full sm:w-auto" size="sm">
+             <QrCode className="mr-1 h-3 w-3" />
+             <span className="hidden lg:inline">Scanner QR</span>
+             <span className="lg:hidden">Scanner</span>
            </Button>
 
-           <Button onClick={handleAddEquipment} className="w-full sm:w-auto">
-             <PlusCircle className="mr-2 h-4 w-4" />
-             Ajouter Équipement
+           <Button onClick={handleAddEquipment} className="w-full sm:w-auto" size="sm">
+             <PlusCircle className="mr-1 h-3 w-3" />
+             <span className="hidden lg:inline">Ajouter Équipement</span>
+             <span className="lg:hidden">Ajouter</span>
            </Button>
         </div>
       </div>
@@ -819,6 +852,9 @@ const EquipmentPage: React.FC = () => {
             services={services || []}
             locations={locations || []}
             onEquipmentClick={handleViewEquipment}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
           />
         ) : (
           <EquipmentGridView

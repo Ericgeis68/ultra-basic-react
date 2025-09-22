@@ -63,6 +63,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
   // Options d'affichage conditionnelles pour l'impression
   const showImages = isPrintPreview ? (printOptions?.includeImages !== false) : true;
   const showStatus = isPrintPreview ? (printOptions?.includeStatus !== false) : true;
+  const showLoanStatus = isPrintPreview ? (printOptions?.includeLoanStatus !== false) : true;
   const showRelationships = false;
 
   const getRelationshipCount = (equipment: Equipment) => {
@@ -285,31 +286,46 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
       )}
 
       <div 
-        className="flex justify-between items-start" 
+        className="flex items-start" 
         style={{ 
           marginBottom: `${printStyles.margin}px`, 
           marginTop: `${printStyles.margin}px`,
-          gap: `${8 * scaleFactor}px`
+          gap: `${12 * scaleFactor}px`
         }}
       >
-        <div>
-          <h3 className={`font-medium ${printStyles.titleSize}`} style={{ fontSize: `${printStyles.fontSize}px` }}>{equipment.name}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 
+            className={`font-medium ${printStyles.titleSize} truncate`} 
+            style={{ fontSize: `${printStyles.fontSize}px` }}
+            title={equipment.name}
+          >
+            {equipment.name}
+          </h3>
           {effectiveFields.model && (
             <p 
-              className={`${printStyles.subtitleSize} text-muted-foreground`} 
+              className={`${printStyles.subtitleSize} text-muted-foreground truncate`} 
               style={{ 
                 fontSize: `${Math.round(printStyles.fontSize * 0.8)}px`,
                 marginTop: '0px'
               }}
+              title={`Modèle: ${equipment.model}`}
             >
               Modèle: {equipment.model}
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-shrink-0">
           {showStatus && <EquipmentStatusBadge status={equipment.status} scaleFactor={scaleFactor} />}
-          {equipment.loan_status && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+          {showLoanStatus && equipment.loan_status && (
+            <span 
+              className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 whitespace-nowrap"
+              style={{ 
+                fontSize: `${Math.round(7 * scaleFactor)}px`,
+                padding: `${1 * scaleFactor}px ${3 * scaleFactor}px`,
+                height: `${14 * scaleFactor}px`,
+                lineHeight: `${14 * scaleFactor}px`
+              }}
+            >
               En prêt
             </span>
           )}

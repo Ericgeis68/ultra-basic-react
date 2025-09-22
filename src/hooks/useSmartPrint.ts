@@ -32,6 +32,7 @@ export function useSmartPrint() {
     includeBuilding: true,
     includeService: true,
     includeStatus: true,
+    includeLoanStatus: true,
     includeRelationships: false,
     format: 'grid',
     pageSize: 'a4',

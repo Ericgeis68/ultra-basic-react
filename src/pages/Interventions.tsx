@@ -71,7 +71,6 @@ const Interventions = () => {
   const handlePrintPreview = () => {
     setIsPrintPreviewOpen(true);
   };
-  const [date, setDate] = useState<Date | undefined>(new Date());
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -101,8 +100,8 @@ const Interventions = () => {
   const { syncInterventionWithMaintenance } = useMaintenance();
 
   // Sorting states
-  const [sortColumn, setSortColumn] = useState<keyof InterventionUI | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortColumn, setSortColumn] = useState<keyof InterventionUI | null>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Fetch interventions from Supabase
   const {
@@ -1545,28 +1544,6 @@ const Interventions = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center gap-2 text-xs sm:text-sm">
-                <CalendarIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {date ? format(date, 'P', { locale: fr }) : 'Sélectionner'}
-                </span>
-                <span className="sm:hidden">
-                  {date ? format(date, 'dd/MM', { locale: fr }) : 'Date'}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <CalendarComponent
-                mode="single"
-                selected={date}
-                onSelect={setDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-
           <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <PopoverTrigger asChild>
               <Button 

@@ -15,31 +15,102 @@ import {
 } from 'recharts';
 import CustomCard from '../ui/CustomCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-const maintenanceData = [
-  { month: 'Jan', preventive: 65, corrective: 35 },
-  { month: 'Fév', preventive: 59, corrective: 25 },
-  { month: 'Mar', preventive: 80, corrective: 40 },
-  { month: 'Avr', preventive: 81, corrective: 24 },
-  { month: 'Mai', preventive: 56, corrective: 37 },
-  { month: 'Juin', preventive: 55, corrective: 18 },
-  { month: 'Juil', preventive: 70, corrective: 30 }
-];
-
-const equipmentStatusData = [
-  { name: 'Opérationnel', value: 70, color: '#10b981' },
-  { name: 'En maintenance', value: 20, color: '#f59e0b' },
-  { name: 'En panne', value: 10, color: '#ef4444' }
-];
-
-const departmentData = [
-  { department: 'Production', interventions: 45 },
-  { department: 'Logistique', interventions: 30 },
-  { department: 'Services', interventions: 20 },
-  { department: 'Admin', interventions: 10 }
-];
+import { useCollection } from '@/hooks/use-supabase-collection';
+import { useMaintenance } from '@/hooks/useMaintenance';
+import { Equipment } from '@/types/equipment';
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 const AnalyticsOverview = () => {
+  // Récupération des vraies données
+  const { data: equipments } = useCollection<Equipment>({ tableName: 'equipments' });
+  const { data: maintenances } = useMaintenance();
+  const { data: interventions } = useCollection<any>({ tableName: 'interventions' });
+
+  // Calcul des données de maintenance par mois (6 derniers mois)
+  const maintenanceData = React.useMemo(() => {
+    if (!interventions) return [];
+    
+    const months = eachMonthOfInterval({
+      start: subMonths(new Date(), 5),
+      end: new Date()
+    });
+
+    return months.map(month => {
+      const monthStart = startOfMonth(month);
+      const monthEnd = endOfMonth(month);
+      
+      const monthInterventions = interventions.filter(intervention => {
+        const interventionDate = new Date(intervention.created_at);
+        return interventionDate >= monthStart && interventionDate <= monthEnd;
+      });
+
+      const preventive = monthInterventions.filter(i => i.type === 'preventive').length;
+      const corrective = monthInterventions.filter(i => i.type === 'corrective').length;
+      const regulatory = monthInterventions.filter(i => i.type === 'regulatory').length;
+      const improvement = monthInterventions.filter(i => i.type === 'improvement').length;
+
+      return {
+        month: format(month, 'MMM', { locale: fr }),
+        preventive,
+        corrective,
+        regulatory,
+        improvement,
+        total: monthInterventions.length
+      };
+    });
+  }, [interventions]);
+
+  // Calcul des données de statut des équipements
+  const equipmentStatusData = React.useMemo(() => {
+    if (!equipments) return [];
+    
+    const statusCounts = equipments.reduce((acc, equipment) => {
+      const status = equipment.status || 'unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const total = equipments.length;
+    
+    return [
+      { 
+        name: 'Opérationnel', 
+        value: Math.round((statusCounts.operational || 0) / total * 100), 
+        color: '#10b981',
+        count: statusCounts.operational || 0
+      },
+      { 
+        name: 'En maintenance', 
+        value: Math.round((statusCounts.maintenance || 0) / total * 100), 
+        color: '#f59e0b',
+        count: statusCounts.maintenance || 0
+      },
+      { 
+        name: 'En panne', 
+        value: Math.round((statusCounts.faulty || 0) / total * 100), 
+        color: '#ef4444',
+        count: statusCounts.faulty || 0
+      }
+    ].filter(item => item.count > 0);
+  }, [equipments]);
+
+  // Calcul des données par bâtiment/service
+  const departmentData = React.useMemo(() => {
+    if (!interventions || !equipments) return [];
+    
+    const departmentCounts = interventions.reduce((acc, intervention) => {
+      const equipment = equipments.find(eq => eq.id === intervention.equipment_id);
+      const department = equipment?.service_id || 'Non assigné';
+      acc[department] = (acc[department] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(departmentCounts)
+      .map(([department, count]) => ({ department, interventions: count }))
+      .sort((a, b) => b.interventions - a.interventions)
+      .slice(0, 5); // Top 5
+  }, [interventions, equipments]);
   return (
     <Tabs defaultValue="maintenance" className="w-full">
       <div className="flex justify-between items-center mb-4">
@@ -67,6 +138,14 @@ const AnalyticsOverview = () => {
                   <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
                 </linearGradient>
+                <linearGradient id="colorRegulatory" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                </linearGradient>
+                <linearGradient id="colorImprovement" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.1}/>
+                </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
               <XAxis dataKey="month" />
@@ -75,7 +154,7 @@ const AnalyticsOverview = () => {
               <Area 
                 type="monotone" 
                 dataKey="preventive" 
-                name="Maintenance préventive"
+                name="Préventive"
                 stroke="hsl(var(--primary))" 
                 fillOpacity={1} 
                 fill="url(#colorPreventive)" 
@@ -83,10 +162,26 @@ const AnalyticsOverview = () => {
               <Area 
                 type="monotone" 
                 dataKey="corrective" 
-                name="Maintenance corrective"
+                name="Corrective"
                 stroke="#ef4444" 
                 fillOpacity={1} 
                 fill="url(#colorCorrective)" 
+              />
+              <Area 
+                type="monotone" 
+                dataKey="regulatory" 
+                name="Réglementaire"
+                stroke="#8b5cf6" 
+                fillOpacity={1} 
+                fill="url(#colorRegulatory)" 
+              />
+              <Area 
+                type="monotone" 
+                dataKey="improvement" 
+                name="Amélioration"
+                stroke="#06b6d4" 
+                fillOpacity={1} 
+                fill="url(#colorImprovement)" 
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -109,7 +204,12 @@ const AnalyticsOverview = () => {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => [`${value}%`, 'Pourcentage']} />
+              <Tooltip 
+                formatter={(value, name, props) => [
+                  `${value}% (${props.payload.count} équipements)`, 
+                  props.payload.name
+                ]} 
+              />
             </PieChart>
           </ResponsiveContainer>
         </CustomCard>

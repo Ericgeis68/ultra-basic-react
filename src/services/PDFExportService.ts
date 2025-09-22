@@ -29,6 +29,7 @@ export interface ExportOptions {
   includeBuilding?: boolean;
   includeService?: boolean;
   includeStatus?: boolean;
+  includeLoanStatus?: boolean;
   includeRelationships?: boolean;
   format?: 'list' | 'grid' | 'cards';
   pageSize?: 'a4' | 'a3' | 'letter' | 'legal' | 'custom';

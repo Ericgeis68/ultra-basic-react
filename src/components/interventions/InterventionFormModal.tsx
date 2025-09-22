@@ -199,7 +199,7 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
         type: initialIntervention.type || (isFromMaintenance ? "preventive" : "corrective"),
         technicians: initialIntervention.technicians || (currentUser ? [currentUser.id] : []),
         title: initialIntervention.title || prefilledTitle || "", // Use prefilled if available
-        status: initialIntervention.status || "in-progress",
+        status: initialIntervention.status || "completed",
         actions: "",
         parts: [],
         technician_history: Array.isArray(initialIntervention.technician_history) ? initialIntervention.technician_history : [],
@@ -235,7 +235,7 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
         type: isFromMaintenance ? "preventive" : "corrective",
         technicians: currentUser ? [currentUser.id] : [],
         title: prefilledTitle || "", // Use prefilled title
-        status: "in-progress", // Default to in-progress for new interventions
+        status: "completed", // Default to completed for new interventions
         actions: "",
         parts: [],
         technician_history: [],
@@ -415,7 +415,7 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
               ...form.getValues(),
               equipment_id: equipment.id,
               id: undefined,
-              status: "in-progress",
+              status: "completed",
               actions: "",
               parts: [],
                technician_history: [],
@@ -450,7 +450,7 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
          ...form.getValues(), // Keep current form values like scheduled_date if already set
          equipment_id: equipment.id,
          id: undefined,
-         status: "in-progress", // Default to in-progress for new interventions
+         status: "completed", // Default to completed for new interventions
          actions: "",
          parts: [],
           technician_history: [],
@@ -505,7 +505,7 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
        type: "corrective",
        technicians: currentUser ? [currentUser.id] : [],
        title: "",
-       status: "in-progress", // Default to in-progress for new interventions
+       status: "completed", // Default to completed for new interventions
        actions: "",
        parts: [],
        technician_history: [],

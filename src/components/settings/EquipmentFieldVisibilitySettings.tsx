@@ -23,6 +23,7 @@ interface EquipmentFieldVisibilitySettings {
     location: boolean;
     groups: boolean;
     date_mise_en_service: boolean;
+    loan_status: boolean;
   };
   list: {
     manufacturer: boolean;
@@ -39,6 +40,7 @@ interface EquipmentFieldVisibilitySettings {
     location: boolean;
     groups: boolean;
     date_mise_en_service: boolean;
+    loan_status: boolean;
   };
 }
 
@@ -58,6 +60,7 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     location: false,
     groups: false,
     date_mise_en_service: false,
+    loan_status: true,
   },
   list: {
     manufacturer: true,
@@ -74,6 +77,7 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     location: false,
     groups: true,
     date_mise_en_service: false,
+    loan_status: true,
   },
 };
 
@@ -92,6 +96,7 @@ const fieldLabels = {
   location: 'Local',
   groups: 'Groupes',
   date_mise_en_service: 'Mise en service',
+  loan_status: 'En prêt',
 };
 
 const EquipmentFieldVisibilitySettings = () => {

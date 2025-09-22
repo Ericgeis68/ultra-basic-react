@@ -144,6 +144,11 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
     }
     headers.push('Statut');
     columnWidths.push(20);
+    
+    if (exportOptions.includeLoanStatus) {
+      headers.push('En prêt');
+      columnWidths.push(15);
+    }
 
     if (exportOptions.includeHealth) {
       headers.push('Santé');
@@ -217,6 +222,12 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
       // Status
       doc.text(getStatusText(equipment.status), xPos + 2, yPosition + 6);
       xPos += adjustedWidths[colIndex++];
+
+      // Loan Status
+      if (exportOptions.includeLoanStatus) {
+        doc.text(equipment.loan_status ? 'Oui' : 'Non', xPos + 2, yPosition + 6);
+        xPos += adjustedWidths[colIndex++];
+      }
 
       if (exportOptions.includeHealth && equipment.health_percentage !== null) {
         doc.text(`${equipment.health_percentage}%`, xPos + 2, yPosition + 6);

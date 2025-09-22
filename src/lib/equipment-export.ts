@@ -76,6 +76,7 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
     { key: 'uf', label: 'UF' },
     { key: 'location', label: 'Localisation' },
     { key: 'status', label: 'Statut' },
+    { key: 'loan_status', label: 'En prêt' },
     { key: 'health', label: 'Santé (%)' },
     { key: 'purchase_date', label: 'Date Achat' },
     { key: 'warranty_expiry', label: 'Garantie' },
@@ -144,6 +145,9 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
           break;
         case 'status':
           value = getStatusText(equipment.status);
+          break;
+        case 'loan_status':
+          value = equipment.loan_status ? 'Oui' : 'Non';
           break;
         case 'health':
           value = equipment.health_percentage !== null ? `${equipment.health_percentage}%` : '';
@@ -240,6 +244,7 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
     { key: 'service', label: 'Service', width: 20 },
     { key: 'location', label: 'Localisation', width: 20 },
     { key: 'status', label: 'Statut', width: 15 },
+    { key: 'loan_status', label: 'En prêt', width: 12 },
     { key: 'health_percentage', label: 'Santé (%)', width: 12 },
     { key: 'purchase_date', label: 'Date Achat', width: 15 },
     { key: 'warranty_expiry', label: 'Garantie', width: 15 },
@@ -285,6 +290,9 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
           break;
         case 'status':
           row[col.label] = getStatusText(equipment.status);
+          break;
+        case 'loan_status':
+          row[col.label] = equipment.loan_status ? 'Oui' : 'Non';
           break;
         case 'health_percentage':
           row[col.label] = equipment.health_percentage !== null ? equipment.health_percentage : '';

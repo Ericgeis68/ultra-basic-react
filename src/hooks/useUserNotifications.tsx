@@ -102,8 +102,8 @@ export function useUserNotifications() {
       }
 
       // Recharger seulement si la notification concerne l'utilisateur connecté
-      const isForCurrentUser = ('recipients' in notification && notification.recipients?.includes(user.id)) ||
-                               ('user_id' in notification && notification.user_id === user.id) ||
+      const isForCurrentUser = ('recipients' in notification && notification.recipients?.includes(user?.id)) ||
+                               ('user_id' in notification && notification.user_id === user?.id) ||
                                (!('recipients' in notification) && !('user_id' in notification));
       
       if (isForCurrentUser) {
@@ -111,8 +111,8 @@ export function useUserNotifications() {
       }
       
       const recipientCount = 'recipients' in notification ? notification.recipients?.length || 1 : 1;
-      const isForOthers = ('recipients' in notification && !notification.recipients?.includes(user.id)) ||
-                         ('user_id' in notification && notification.user_id && notification.user_id !== user.id);
+      const isForOthers = ('recipients' in notification && user && !notification.recipients?.includes(user.id)) ||
+                         ('user_id' in notification && notification.user_id && notification.user_id !== user?.id);
       
       toast({
         title: "Notification créée",

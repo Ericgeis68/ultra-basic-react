@@ -59,8 +59,13 @@ const EquipmentDocumentsSection: React.FC<EquipmentDocumentsSectionProps> = ({
                   <p className="text-sm text-muted-foreground mt-1">{doc.description}</p>
                   <div className="flex items-center gap-4 mt-2">
                     <span className="text-xs text-muted-foreground">
-                      {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : ''}
+                      {doc.createdat ? new Date(doc.createdat).toLocaleDateString() : ''}
                     </span>
+                    {doc.size !== undefined && doc.size !== null && (
+                      <span className="text-xs text-muted-foreground">
+                        {(doc.size / 1000).toFixed(0)} Ko
+                      </span>
+                    )}
                     {doc.category && (
                       <Badge variant="outline" className="text-[10px]">
                         {doc.category}

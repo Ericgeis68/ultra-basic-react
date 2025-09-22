@@ -50,6 +50,10 @@ interface MaintenanceFormModalProps {
   onSave: (maintenance: MaintenanceFormData) => void;
   maintenance?: any;
   currentUser?: any;
+  prefillEquipment?: {
+    equipment_id: string;
+    equipment_name: string;
+  };
 }
 
 const maintenanceTypes = [
@@ -80,7 +84,8 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
   onClose,
   onSave,
   maintenance,
-  currentUser
+  currentUser,
+  prefillEquipment
 }) => {
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>("");
   const [isEquipmentSelectorOpen, setIsEquipmentSelectorOpen] = useState(false);
@@ -138,10 +143,14 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
         setSelectedEquipment(eq || null);
       }
     } else {
+      // Si prefillEquipment est fourni, pré-remplir avec cet équipement
+      const equipmentId = prefillEquipment?.equipment_id || "";
+      const equipmentName = prefillEquipment?.equipment_name || "";
+      
       form.reset({
         title: "",
         description: "",
-        equipment_id: "",
+        equipment_id: equipmentId,
         type: "preventive",
         frequency_type: "one-time",
         frequency_value: 1,
@@ -154,10 +163,24 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
         notification_time_before_value: 1,
         notification_time_before_unit: 'days',
       });
-      setSelectedEquipmentId("");
-      setSelectedEquipment(null);
+      
+      setSelectedEquipmentId(equipmentId);
+      
+      // Si on a un équipement pré-rempli, le sélectionner
+      if (equipmentId && equipments) {
+        const eq = equipments.find(e => e.id === equipmentId);
+        setSelectedEquipment(eq || null);
+      } else if (prefillEquipment) {
+        // Créer un objet équipement temporaire pour l'affichage
+        setSelectedEquipment({
+          id: equipmentId,
+          name: equipmentName,
+        } as Equipment);
+      } else {
+        setSelectedEquipment(null);
+      }
     }
-  }, [maintenance, currentUser, form, isOpen, equipments]);
+  }, [maintenance, currentUser, form, isOpen, equipments, prefillEquipment]);
 
   const handleEquipmentSelected = (equipment: Equipment) => {
     setSelectedEquipment(equipment);

@@ -96,22 +96,22 @@ const EquipmentListItem: React.FC<EquipmentListItemProps> = ({
       onClick={handleCardClick}
     >
       <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex items-start mb-3 gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg">{equipment.name}</h3>
-            <p className="text-sm text-gray-600 truncate">
+            <h3 className="font-semibold text-lg truncate" title={equipment.name}>{equipment.name}</h3>
+            <p className="text-sm text-gray-600 truncate" title={equipment.model || 'Modèle non spécifié'}>
               {equipment.model || 'Modèle non spécifié'}
             </p>
           </div>
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Badge 
               variant="outline" 
-              className={getStatusBadgeColor(equipment.status)}
+              className={`${getStatusBadgeColor(equipment.status)} text-xs px-2 py-1`}
             >
               {getStatusText(equipment.status)}
             </Badge>
             {equipment.loan_status && (
-              <Badge variant="outline" className="bg-orange-100 text-orange-800">
+              <Badge variant="outline" className="bg-orange-100 text-orange-800 text-xs px-2 py-1">
                 En prêt
               </Badge>
             )}

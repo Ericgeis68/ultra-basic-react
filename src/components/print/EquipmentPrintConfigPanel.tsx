@@ -224,6 +224,15 @@ const EquipmentPrintConfigPanel: React.FC<EquipmentPrintConfigPanelProps> = ({
               />
             </div>
 
+            <div className="flex items-center justify-between">
+              <Label htmlFor="includeLoanStatus" className="text-sm">En prêt</Label>
+              <Switch
+                id="includeLoanStatus"
+                checked={options.includeLoanStatus ?? true}
+                onCheckedChange={(checked) => onOptionsChange({ includeLoanStatus: checked })}
+              />
+            </div>
+
             {/* Champ Description supprimé de la configuration d'impression */}
 
             <div className="flex items-center justify-between">

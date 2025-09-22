@@ -19,28 +19,24 @@ export interface TechnicianHistoryEntry {
   [key: string]: Json; // This makes it compatible with Json type
 }
 
-// Main Intervention interface - temporary compatibility layer
+// Main Intervention interface matching database schema
 export interface Intervention {
   id: string;
   equipment_id?: string;
+  maintenance_id?: string;
+  type: string;
   title?: string;
   description?: string;
-  status?: string;
-  priority?: string;
-  assigned_to?: string;
+  actions?: string;
+  scheduled_date: string;
   start_date?: string;
   end_date?: string;
-  created_at: string;
-  updated_at?: string;
-  // Legacy properties for backward compatibility
-  maintenance_id?: string;
-  type?: string;
-  actions?: string;
-  scheduled_date?: string;
   completed_date?: string;
+  status?: string;
   technicians?: string[];
-  parts?: any[];
-  technician_history?: TechnicianHistoryEntry[];
+  parts?: Json;
+  technician_history?: Json;
+  created_at: string;
   created_by?: string;
 }
 
@@ -79,19 +75,16 @@ export interface InterventionUI {
 // Form data interface for creating/updating interventions
 export interface InterventionFormData {
   equipment_id?: string;
+  maintenance_id?: string;
+  type: string;
   title?: string;
   description?: string;
-  status?: string;
-  priority?: string;
-  assigned_to?: string;
+  actions?: string;
+  scheduled_date: string;
   start_date?: string;
   end_date?: string;
-  // Legacy properties for backward compatibility
-  maintenance_id?: string;
-  type?: string;
-  actions?: string;
-  scheduled_date?: string;
   completed_date?: string;
+  status?: string;
   technicians?: string[];
   parts?: UsedPart[];
   technician_history?: TechnicianHistoryEntry[];

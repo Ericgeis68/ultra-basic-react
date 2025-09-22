@@ -350,50 +350,50 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
     switch (status) {
       case 'operational':
         return (
-          <Badge variant="outline" className="border-green-500 text-green-500 flex items-center gap-1">
-            <CheckCircle className="h-3 w-3" />
+          <Badge variant="outline" className="border-green-500 text-green-500 flex items-center gap-1.5">
+            <CheckCircle className="h-3.5 w-3.5" />
             Opérationnel
           </Badge>
         );
       case 'maintenance':
         return (
-          <Badge variant="outline" className="border-amber-500 text-amber-500 flex items-center gap-1">
-            <Clock className="h-3 w-3" />
+          <Badge variant="outline" className="border-amber-500 text-amber-500 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
             En maintenance
           </Badge>
         );
       case 'faulty':
         return (
-          <Badge variant="outline" className="border-red-500 text-red-500 flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
+          <Badge variant="outline" className="border-red-500 text-red-500 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
             En panne
           </Badge>
         );
       case 'planned':
         return (
-          <Badge variant="outline" className="border-blue-500 text-blue-800 border-blue-300 flex items-center gap-1">
-            <CalendarClock className="h-3 w-3" />
+          <Badge variant="outline" className="border-blue-500 text-blue-800 border-blue-300 flex items-center gap-1.5">
+            <CalendarClock className="h-3.5 w-3.5" />
             Planifiée
           </Badge>
         );
       case 'in_progress':
         return (
-          <Badge variant="outline" className="border-yellow-500 text-yellow-800 border-yellow-300 flex items-center gap-1">
-            <Clock className="h-3 w-3" />
+          <Badge variant="outline" className="border-yellow-500 text-yellow-800 border-yellow-300 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
             En cours
           </Badge>
         );
       case 'completed':
         return (
-          <Badge variant="outline" className="border-green-500 text-green-800 border-green-300 flex items-center gap-1">
-            <CheckCircle className="h-3 w-3" />
+          <Badge variant="outline" className="border-green-500 text-green-800 border-green-300 flex items-center gap-1.5">
+            <CheckCircle className="h-3.5 w-3.5" />
             Terminée
           </Badge>
         );
       case 'cancelled':
         return (
-          <Badge variant="outline" className="border-gray-500 text-gray-800 border-gray-300 flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
+          <Badge variant="outline" className="border-gray-500 text-gray-800 border-gray-300 flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
             Annulée
           </Badge>
         );
@@ -420,14 +420,9 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
         const { error: insertError } = await supabase
           .from('interventions')
           .insert({
-            title: interventionData.title || 'Intervention',
-            description: interventionData.description,
+            ...interventionData,
             equipment_id: equipment.id,
-            status: interventionData.status || 'pending',
-            priority: interventionData.priority || 'medium',
-            assigned_to: interventionData.assigned_to,
-            start_date: interventionData.start_date,
-            end_date: interventionData.end_date,
+            created_at: new Date().toISOString(),
           });
         error = insertError;
         if (!error) {
@@ -983,6 +978,7 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
               usersLoading={usersLoading}
               usersError={usersError}
               users={users}
+              equipment={equipment}
               equipmentHistory={filteredHistory}
               historyLoading={historyLoading}
               historyError={historyError}
@@ -1010,6 +1006,8 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
               documentsLoading={documentsLoading}
               documentsError={documentsError}
               equipmentDocuments={equipmentDocuments}
+              equipment={equipment}
+              currentUser={user}
             />
           </Tabs>
 

@@ -89,6 +89,7 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
     model: options.includeModel,
     manufacturer: options.includeManufacturer,
     status: options.includeStatus,
+    loanStatus: options.includeLoanStatus,
     health: options.includeHealth,
     uf: options.includeUF,
     inventoryNumber: options.includeInventoryNumber,
@@ -112,6 +113,7 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
             {visibleColumns.model && <th className="print-th">Modèle</th>}
             {visibleColumns.manufacturer && <th className="print-th">Fabricant</th>}
             {visibleColumns.status && <th className="print-th">Statut</th>}
+            {visibleColumns.loanStatus && <th className="print-th">En prêt</th>}
             {visibleColumns.health && <th className="print-th">Santé</th>}
             {visibleColumns.uf && <th className="print-th">UF</th>}
             {visibleColumns.inventoryNumber && <th className="print-th">N° Inventaire</th>}
@@ -164,6 +166,24 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
                     }}
                   >
                     {getStatusText(equipment.status)}
+                  </div>
+                </td>
+              )}
+              {visibleColumns.loanStatus && (
+                <td className="print-td">
+                  <div 
+                    className="print-loan-status-badge"
+                    style={{ 
+                      backgroundColor: equipment.loan_status ? '#f97316' : '#22c55e',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      textAlign: 'center',
+                      display: 'inline-block'
+                    }}
+                  >
+                    {equipment.loan_status ? 'Oui' : 'Non'}
                   </div>
                 </td>
               )}

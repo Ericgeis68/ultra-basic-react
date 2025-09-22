@@ -119,12 +119,12 @@ const EquipmentBulkImport = () => {
       console.log("Données:", row);
       
       // Vérifier que la ligne a assez de colonnes
-      if (row.length < 13) {
+      if (row.length < 14) {
         errors.push({
           line: lineNumber,
           field: 'Structure',
           value: `${row.length} colonnes`,
-          error: `La ligne doit contenir exactement 13 colonnes (trouvé: ${row.length})`
+          error: `La ligne doit contenir exactement 14 colonnes (trouvé: ${row.length})`
         });
         continue;
       }
@@ -139,6 +139,7 @@ const EquipmentBulkImport = () => {
         description,
         uf,
         status,
+        loan_status,
         buildingName,
         serviceName,
         locationName,
@@ -165,6 +166,24 @@ const EquipmentBulkImport = () => {
           value: status,
           error: `Statut invalide. Valeurs autorisées: ${validStatuses.join(', ')}`
         });
+      }
+
+      // Validation du statut de prêt
+      let loanStatusBoolean = false;
+      if (loan_status) {
+        const loanStatusLower = loan_status.toLowerCase();
+        if (loanStatusLower === 'oui' || loanStatusLower === 'yes' || loanStatusLower === 'true' || loanStatusLower === '1') {
+          loanStatusBoolean = true;
+        } else if (loanStatusLower === 'non' || loanStatusLower === 'no' || loanStatusLower === 'false' || loanStatusLower === '0') {
+          loanStatusBoolean = false;
+        } else {
+          errors.push({
+            line: lineNumber,
+            field: 'En prêt',
+            value: loan_status,
+            error: 'Valeur invalide. Valeurs autorisées: oui/non, yes/no, true/false, 1/0'
+          });
+        }
       }
 
       // Validation du bâtiment
@@ -275,7 +294,8 @@ const EquipmentBulkImport = () => {
           service_id,
           location_id,
           equipment_group_ids,
-          status: validStatus
+          status: validStatus,
+          loan_status: loanStatusBoolean
         };
         
         validEquipments.push(equipment);
@@ -494,9 +514,9 @@ const EquipmentBulkImport = () => {
 
   const downloadEquipmentTemplate = () => {
     const csvContent = [
-      'Nom,Modèle,Fabricant,Fournisseur,Numéro de série,Numéro inventaire,Description,UF,Statut,Bâtiment,Service,Local,Groupes',
-      'Équipement A,Modèle X,Fabricant Y,Fournisseur Z,SN001,INV001,Description équipement,UF001,operational,Platanes,Platanes 2 USLD,Chambres 2,volker',
-      'Équipement B,Modèle Y,Fabricant Z,Fournisseur A,SN002,INV002,Description équipement B,UF002,maintenance,Platanes,Platanes 2 USLD,Chambres 2,volker'
+      'Nom,Modèle,Fabricant,Fournisseur,Numéro de série,Numéro inventaire,Description,UF,Statut,En prêt,Bâtiment,Service,Local,Groupes',
+      'Équipement A,Modèle X,Fabricant Y,Fournisseur Z,SN001,INV001,Description équipement,UF001,operational,non,Platanes,Platanes 2 USLD,Chambres 2,volker',
+      'Équipement B,Modèle Y,Fabricant Z,Fournisseur A,SN002,INV002,Description équipement B,UF002,maintenance,oui,Platanes,Platanes 2 USLD,Chambres 2,volker'
     ].join('\n');
     
     const BOM = '\uFEFF';
@@ -526,7 +546,7 @@ const EquipmentBulkImport = () => {
       const locations = locationsResult.data?.map(l => l.name) || [];
       const groups = groupsResult.data?.map(g => g.name) || [];
 
-      const headers = ['Nom', 'Modèle', 'Fabricant', 'Fournisseur', 'Numéro de série', 'Numéro inventaire', 'Description', 'UF', 'Statut', 'Bâtiment', 'Service', 'Local', 'Groupes'];
+      const headers = ['Nom', 'Modèle', 'Fabricant', 'Fournisseur', 'Numéro de série', 'Numéro inventaire', 'Description', 'UF', 'Statut', 'En prêt', 'Bâtiment', 'Service', 'Local', 'Groupes'];
       
       // Créer des exemples avec des données réelles si disponibles
       const sampleData = [
@@ -540,6 +560,7 @@ const EquipmentBulkImport = () => {
           'Description équipement', 
           'UF001', 
           'operational', 
+          'non',
           buildings[0] || 'Platanes', 
           services[0] || 'Platanes 2 USLD', 
           locations[0] || 'Chambres 2', 
@@ -555,6 +576,7 @@ const EquipmentBulkImport = () => {
           'Description équipement B', 
           'UF002', 
           'maintenance', 
+          'oui',
           buildings[1] || buildings[0] || 'Platanes', 
           services[1] || services[0] || 'Platanes 2 USLD', 
           locations[1] || locations[0] || 'Chambres 2', 
@@ -695,7 +717,7 @@ const EquipmentBulkImport = () => {
               <div className="mt-3 p-2 bg-blue-50 rounded text-xs">
                 <p className="font-medium text-blue-800 mb-1">💡 Important :</p>
                 <ul className="space-y-1 text-blue-700">
-                  <li>• Le fichier CSV doit contenir exactement 13 colonnes</li>
+                  <li>• Le fichier CSV doit contenir exactement 14 colonnes</li>
                   <li>• Les noms de bâtiments, services et locaux doivent correspondre exactement aux noms existants</li>
                   <li>• La recherche est insensible à la casse (majuscules/minuscules)</li>
                   <li>• Utilisez des guillemets pour les valeurs contenant des virgules</li>
@@ -750,7 +772,7 @@ const EquipmentBulkImport = () => {
                   <li>• Vérifiez que tous les noms obligatoires sont renseignés</li>
                   <li>• Assurez-vous que les bâtiments, services et locaux existent dans le système</li>
                   <li>• Vérifiez que le statut utilise les valeurs autorisées (operational, maintenance, faulty)</li>
-                  <li>• Vérifiez que le fichier contient exactement 13 colonnes</li>
+                  <li>• Vérifiez que le fichier contient exactement 14 colonnes</li>
                 </ul>
               </div>
             </AlertDialogDescription>

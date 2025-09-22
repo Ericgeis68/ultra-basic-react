@@ -8,8 +8,8 @@ interface EquipmentStatusBadgeProps {
 }
 
 const EquipmentStatusBadge: React.FC<EquipmentStatusBadgeProps> = ({ status, scaleFactor = 1 }) => {
-  const iconSize = Math.round(8 * scaleFactor); // Taille d'icône réduite de 12px à 8px
-  const fontSize = Math.round(8 * scaleFactor); // Taille de police réduite de 12px à 8px
+  const iconSize = Math.round(6 * scaleFactor); // Taille d'icône encore plus réduite pour économiser l'espace
+  const fontSize = Math.round(7 * scaleFactor); // Taille de police encore plus réduite
   
   switch (status) {
     case 'operational':
@@ -19,8 +19,9 @@ const EquipmentStatusBadge: React.FC<EquipmentStatusBadgeProps> = ({ status, sca
           className="border-green-500 text-green-500 flex items-center gap-1"
           style={{ 
             fontSize: `${fontSize}px`,
-            padding: `${2 * scaleFactor}px ${4 * scaleFactor}px`,
-            height: `${16 * scaleFactor}px`
+            padding: `${1 * scaleFactor}px ${3 * scaleFactor}px`,
+            height: `${14 * scaleFactor}px`,
+            lineHeight: `${14 * scaleFactor}px`
           }}
         >
           <CheckCircle style={{ width: `${iconSize}px`, height: `${iconSize}px` }} />
@@ -34,8 +35,9 @@ const EquipmentStatusBadge: React.FC<EquipmentStatusBadgeProps> = ({ status, sca
           className="border-amber-500 text-amber-500 flex items-center gap-1"
           style={{ 
             fontSize: `${fontSize}px`,
-            padding: `${2 * scaleFactor}px ${4 * scaleFactor}px`,
-            height: `${16 * scaleFactor}px`
+            padding: `${1 * scaleFactor}px ${3 * scaleFactor}px`,
+            height: `${14 * scaleFactor}px`,
+            lineHeight: `${14 * scaleFactor}px`
           }}
         >
           <Clock style={{ width: `${iconSize}px`, height: `${iconSize}px` }} />
@@ -49,8 +51,9 @@ const EquipmentStatusBadge: React.FC<EquipmentStatusBadgeProps> = ({ status, sca
           className="border-red-500 text-red-500 flex items-center gap-1"
           style={{ 
             fontSize: `${fontSize}px`,
-            padding: `${2 * scaleFactor}px ${4 * scaleFactor}px`,
-            height: `${16 * scaleFactor}px`
+            padding: `${1 * scaleFactor}px ${3 * scaleFactor}px`,
+            height: `${14 * scaleFactor}px`,
+            lineHeight: `${14 * scaleFactor}px`
           }}
         >
           <AlertTriangle style={{ width: `${iconSize}px`, height: `${iconSize}px` }} />

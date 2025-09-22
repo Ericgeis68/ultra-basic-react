@@ -66,11 +66,13 @@ const EquipmentSelectorField: React.FC<EquipmentSelectorFieldProps> = ({
     <div className="w-full">
       {selectedEquipment ? (
         <div className="border rounded-md p-3 bg-background">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-medium truncate text-sm sm:text-base">{selectedEquipment.name}</h4>
-                <EquipmentStatusBadge status={selectedEquipment.status} />
+                <h4 className="font-medium truncate text-sm sm:text-base flex-1 min-w-0" title={selectedEquipment.name}>{selectedEquipment.name}</h4>
+                <div className="flex-shrink-0">
+                  <EquipmentStatusBadge status={selectedEquipment.status} />
+                </div>
               </div>
               
               <div className="space-y-1 text-xs sm:text-sm">

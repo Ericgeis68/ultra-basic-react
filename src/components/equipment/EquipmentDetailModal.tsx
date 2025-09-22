@@ -108,7 +108,6 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       supplier: '',
       status: 'operational' as EquipmentStatus,
       health_percentage: 100,
-      loan_status: false,
       date_mise_en_service: '',
       purchase_date: '',
       warranty_expiry: '',
@@ -476,15 +475,19 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
+                  <Label className="text-sm font-medium">Statut de prêt</Label>
+                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
                     <Checkbox
                       id="loan_status"
                       checked={formData.loan_status}
                       onCheckedChange={(checked) => handleInputChange('loan_status', checked)}
                     />
-                    <Label htmlFor="loan_status">En prêt</Label>
+                    <Label htmlFor="loan_status" className="text-sm cursor-pointer">
+                      Cet équipement est en prêt
+                    </Label>
                   </div>
                 </div>
+
 
                 {!isNewEquipment && (
                   <div className="space-y-2">

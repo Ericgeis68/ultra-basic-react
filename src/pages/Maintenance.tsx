@@ -430,21 +430,21 @@ const Maintenance = () => {
         onValueChange={setActiveTab}
         className="mb-6"
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4 md:h-5 md:w-5" />
             Toutes
           </TabsTrigger>
           <TabsTrigger value="in-progress" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
+            <Clock className="h-4 w-4 md:h-5 md:w-5" />
             En cours
           </TabsTrigger>
           <TabsTrigger value="scheduled" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="h-4 w-4 md:h-5 md:w-5" />
             Planifiées
           </TabsTrigger>
           <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4" />
+            <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
             Calendrier
           </TabsTrigger>
         </TabsList>
