@@ -72,55 +72,56 @@ export function useMaintenanceNotifications() {
   }, [requestPermissions]);
 
   // Notification pour nouvelle intervention avec vérification d'assignation
-  const showInterventionNotification = useCallback(
-    (intervention: any, maintenance?: any) => {
-      if (!preferences.enabled || !user) return;
+  const showInterventionNotification = useCallback(async (
+    intervention: any, 
+    maintenance?: any
+  ) => {
+    if (!preferences.enabled || !user) return;
 
-      // Vérifier si l'utilisateur connecté est dans les techniciens assignés à la maintenance
-      const isAssignedToMaintenance = maintenance?.assigned_technicians?.includes(user.id);
-      
-      // Pour les maintenances, ne notifier que les techniciens assignés
-      if (maintenance && !isAssignedToMaintenance) return;
-      
-      // Pour les interventions sans maintenance, vérifier les techniciens de l'intervention
-      const isAssignedToIntervention = intervention.technicians?.includes(user.id);
-      if (!maintenance && !isAssignedToIntervention) return;
+    // Vérifier si l'utilisateur connecté est dans les techniciens assignés à la maintenance
+    const isAssignedToMaintenance = maintenance?.assigned_technicians?.includes(user.id);
+    
+    // Pour les maintenances, ne notifier que les techniciens assignés
+    if (maintenance && !isAssignedToMaintenance) return;
+    
+    // Pour les interventions sans maintenance, vérifier les techniciens de l'intervention
+    const isAssignedToIntervention = intervention.technicians?.includes(user.id);
+    if (!maintenance && !isAssignedToIntervention) return;
+
+    const title = intervention.title || 'Nouvelle intervention';
+    const equipment = intervention.equipment_name || 'Équipement non spécifié';
+    const isUrgent = intervention.priority === 'urgent';
 
     try {
-      const title = intervention.title || 'Nouvelle intervention';
-      const equipment = intervention.equipment_name || 'Équipement non spécifié';
-      const isUrgent = intervention.priority === 'urgent';
-
-      try {
-        // Vibration si activée et sur mobile natif
-        if (preferences.vibration && isNativePlatform) {
-          await Haptics.impact({ 
-            style: isUrgent ? ImpactStyle.Heavy : ImpactStyle.Medium 
-          });
-        }
-
-        if (isNativePlatform && isPermissionGranted) {
-          await LocalNotifications.schedule({
-            notifications: [{
-              title: isUrgent ? `🚨 ${title}` : `🔧 ${title}`,
-              body: `Équipement: ${equipment}${isUrgent ? ' - Intervention urgente!' : ''}`,
-              id: Date.now(),
-              schedule: { at: new Date(Date.now() + 1000) },
-              sound: preferences.sound ? 'beep.wav' : undefined,
-              attachments: undefined,
-              actionTypeId: 'maintenance',
-              extra: {
-                type: 'intervention',
-                equipment,
-                urgent: isUrgent
-              }
-            }]
-          });
-        }
-      } catch (error) {
-        console.error('Erreur notification intervention:', error);
+      // Vibration si activée et sur mobile natif
+      if (preferences.vibration && isNativePlatform) {
+        await Haptics.impact({ 
+          style: isUrgent ? ImpactStyle.Heavy : ImpactStyle.Medium 
+        });
       }
-    }, [preferences, isPermissionGranted, isNativePlatform, user]);
+
+      if (isNativePlatform && isPermissionGranted) {
+        await LocalNotifications.schedule({
+          notifications: [{
+            title: isUrgent ? `🚨 ${title}` : `🔧 ${title}`,
+            body: `Équipement: ${equipment}${isUrgent ? ' - Intervention urgente!' : ''}`,
+            id: Date.now(),
+            schedule: { at: new Date(Date.now() + 1000) },
+            sound: preferences.sound ? 'beep.wav' : undefined,
+            attachments: undefined,
+            actionTypeId: 'maintenance',
+            extra: {
+              type: 'intervention',
+              equipment,
+              urgent: isUrgent
+            }
+          }]
+        });
+      }
+    } catch (error) {
+      console.error('Erreur notification intervention:', error);
+    }
+  }, [preferences, isPermissionGranted, isNativePlatform, user]);
 
   // Alerte urgente avec vibration forte
   const showUrgentAlert = useCallback(async (message: string, equipment: string) => {
@@ -249,11 +250,11 @@ export function useMaintenanceNotifications() {
     }
 
     try {
-      await showInterventionNotification(
-        'Test Notification',
-        'Équipement Test-001',
-        false
-      );
+      await showInterventionNotification({
+        title: 'Test Notification',
+        equipment_name: 'Équipement Test-001',
+        priority: 'medium'
+      });
       return true;
     } catch (error) {
       console.error('Erreur test notification:', error);
