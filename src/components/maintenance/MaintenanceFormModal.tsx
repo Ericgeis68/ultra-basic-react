@@ -25,6 +25,7 @@ import { Location } from '@/types/location';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { MultiDatePicker } from '@/components/ui/multi-date-picker';
+import { useCustomAuth } from '@/hooks/useCustomAuth';
 
 interface MaintenanceFormData {
   title: string;
@@ -79,6 +80,13 @@ const timeUnits = [
   { id: "weeks", name: "Semaine(s)" }
 ];
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  username: string;
+  role: string;
+}
+
 const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
   isOpen,
   onClose,
@@ -90,6 +98,10 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>("");
   const [isEquipmentSelectorOpen, setIsEquipmentSelectorOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
+  const [showOtherUsers, setShowOtherUsers] = useState(false);
+  const { user } = useCustomAuth();
 
   // Fetch data
   const { data: equipments } = useCollection<Equipment>({ tableName: 'equipments' });
@@ -119,6 +131,31 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
 
   const formFrequencyType = form.watch('frequency_type');
 
+  // Charger la liste des utilisateurs
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, username, role')
+          .order('full_name');
+
+        if (error) {
+          console.error('Erreur chargement utilisateurs:', error);
+          return;
+        }
+
+        setUsers(data || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des utilisateurs:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (maintenance) {
       form.reset({
@@ -137,6 +174,7 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
         notification_time_before_value: maintenance.notification_time_before_value || 1,
         notification_time_before_unit: maintenance.notification_time_before_unit || 'days',
       });
+      setSelectedTechnicians(maintenance.assigned_technicians || (currentUser ? [currentUser.id] : []));
       setSelectedEquipmentId(maintenance.equipment_id || "");
       if (maintenance.equipment_id && equipments) {
         const eq = equipments.find(e => e.id === maintenance.equipment_id);
@@ -165,6 +203,7 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
       });
       
       setSelectedEquipmentId(equipmentId);
+      setSelectedTechnicians(currentUser ? [currentUser.id] : []);
       
       // Si on a un équipement pré-rempli, le sélectionner
       if (equipmentId && equipments) {
@@ -198,8 +237,30 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
       return;
     }
 
-    onSave({ ...data, equipment_name: selectedEquipment?.name, created_by: currentUser?.id });
+    if (selectedTechnicians.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez assigner au moins un technicien",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    onSave({ 
+      ...data, 
+      equipment_name: selectedEquipment?.name, 
+      created_by: currentUser?.id,
+      assigned_technicians: selectedTechnicians
+    });
     onClose();
+  };
+
+  const toggleTechnician = (userId: string) => {
+    setSelectedTechnicians(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   const getTypeBadgeInfo = (type: string) => {
@@ -433,6 +494,98 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
                       </FormItem>
                     )}
                   />
+                )}
+              </div>
+
+              {/* Techniciens assignés */}
+              <div className="space-y-3">
+                <Label>
+                  <User className="h-4 w-4 inline mr-1" />
+                  Techniciens assignés * ({selectedTechnicians.length} sélectionné{selectedTechnicians.length > 1 ? 's' : ''})
+                </Label>
+                
+                <div className="border rounded-md p-3 space-y-2">
+                  {/* Utilisateur connecté (toujours visible) */}
+                  {user && users.find(u => u.id === user.id) && (
+                    <div 
+                      className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                        selectedTechnicians.includes(user.id) 
+                          ? 'bg-primary/10 border border-primary' 
+                          : 'hover:bg-muted'
+                      }`}
+                      onClick={() => toggleTechnician(user.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTechnicians.includes(user.id)}
+                        onChange={() => toggleTechnician(user.id)}
+                        className="h-4 w-4"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{users.find(u => u.id === user.id)?.full_name}</span>
+                          <span className="text-sm text-muted-foreground">({users.find(u => u.id === user.id)?.username})</span>
+                          <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">Moi</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bouton pour afficher/masquer les autres utilisateurs */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-center gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowOtherUsers(!showOtherUsers)}
+                  >
+                    {showOtherUsers ? (
+                      <>
+                        <X className="h-4 w-4" />
+                        Masquer les autres techniciens
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        Ajouter d'autres techniciens ({users.filter(u => u.id !== user?.id).length})
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Autres utilisateurs (cachés par défaut) */}
+                  {showOtherUsers && (
+                    <div className="max-h-48 overflow-y-auto space-y-2 border-t pt-2">
+                      {users.filter(u => u.id !== user?.id).map(otherUser => (
+                        <div 
+                          key={otherUser.id} 
+                          className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                            selectedTechnicians.includes(otherUser.id) 
+                              ? 'bg-primary/10 border border-primary' 
+                              : 'hover:bg-muted'
+                          }`}
+                          onClick={() => toggleTechnician(otherUser.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTechnicians.includes(otherUser.id)}
+                            onChange={() => toggleTechnician(otherUser.id)}
+                            className="h-4 w-4"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{otherUser.full_name}</span>
+                              <span className="text-sm text-muted-foreground">({otherUser.username})</span>
+                              <span className="text-xs bg-muted px-1 rounded">{otherUser.role}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {selectedTechnicians.length === 0 && (
+                  <p className="text-sm text-destructive">Au moins un technicien doit être assigné</p>
                 )}
               </div>
 

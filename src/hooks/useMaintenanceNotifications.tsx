@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
+import { useCustomAuth } from '@/hooks/useCustomAuth';
 
 interface NotificationPreferences {
   enabled: boolean;
@@ -24,6 +25,7 @@ const defaultPreferences: NotificationPreferences = {
 export function useMaintenanceNotifications() {
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences);
   const [isPermissionGranted, setIsPermissionGranted] = useState(false);
+  const { user } = useCustomAuth();
 
   // Détecter si on est dans un environnement mobile natif
   const isNativePlatform = Capacitor.isNativePlatform();
@@ -69,42 +71,56 @@ export function useMaintenanceNotifications() {
     requestPermissions();
   }, [requestPermissions]);
 
-  // Notification pour nouvelle intervention (seulement sur mobile natif)
-  const showInterventionNotification = useCallback(async (
-    title: string, 
-    equipment: string, 
-    isUrgent: boolean = false
-  ) => {
-    if (!preferences.enabled || !isPermissionGranted || !isNativePlatform) return;
+  // Notification pour nouvelle intervention avec vérification d'assignation
+  const showInterventionNotification = useCallback(
+    (intervention: any, maintenance?: any) => {
+      if (!preferences.enabled || !user) return;
+
+      // Vérifier si l'utilisateur connecté est dans les techniciens assignés à la maintenance
+      const isAssignedToMaintenance = maintenance?.assigned_technicians?.includes(user.id);
+      
+      // Pour les maintenances, ne notifier que les techniciens assignés
+      if (maintenance && !isAssignedToMaintenance) return;
+      
+      // Pour les interventions sans maintenance, vérifier les techniciens de l'intervention
+      const isAssignedToIntervention = intervention.technicians?.includes(user.id);
+      if (!maintenance && !isAssignedToIntervention) return;
 
     try {
-      // Vibration si activée
-      if (preferences.vibration) {
-        await Haptics.impact({ 
-          style: isUrgent ? ImpactStyle.Heavy : ImpactStyle.Medium 
-        });
-      }
+      const title = intervention.title || 'Nouvelle intervention';
+      const equipment = intervention.equipment_name || 'Équipement non spécifié';
+      const isUrgent = intervention.priority === 'urgent';
 
-      await LocalNotifications.schedule({
-        notifications: [{
-          title: isUrgent ? `🚨 ${title}` : `🔧 ${title}`,
-          body: `Équipement: ${equipment}${isUrgent ? ' - Intervention urgente!' : ''}`,
-          id: Date.now(),
-          schedule: { at: new Date(Date.now() + 1000) },
-          sound: preferences.sound ? 'beep.wav' : undefined,
-          attachments: undefined,
-          actionTypeId: 'maintenance',
-          extra: {
-            type: 'intervention',
-            equipment,
-            urgent: isUrgent
-          }
-        }]
-      });
-    } catch (error) {
-      console.error('Erreur notification intervention:', error);
-    }
-  }, [preferences, isPermissionGranted, isNativePlatform]);
+      try {
+        // Vibration si activée et sur mobile natif
+        if (preferences.vibration && isNativePlatform) {
+          await Haptics.impact({ 
+            style: isUrgent ? ImpactStyle.Heavy : ImpactStyle.Medium 
+          });
+        }
+
+        if (isNativePlatform && isPermissionGranted) {
+          await LocalNotifications.schedule({
+            notifications: [{
+              title: isUrgent ? `🚨 ${title}` : `🔧 ${title}`,
+              body: `Équipement: ${equipment}${isUrgent ? ' - Intervention urgente!' : ''}`,
+              id: Date.now(),
+              schedule: { at: new Date(Date.now() + 1000) },
+              sound: preferences.sound ? 'beep.wav' : undefined,
+              attachments: undefined,
+              actionTypeId: 'maintenance',
+              extra: {
+                type: 'intervention',
+                equipment,
+                urgent: isUrgent
+              }
+            }]
+          });
+        }
+      } catch (error) {
+        console.error('Erreur notification intervention:', error);
+      }
+    }, [preferences, isPermissionGranted, isNativePlatform, user]);
 
   // Alerte urgente avec vibration forte
   const showUrgentAlert = useCallback(async (message: string, equipment: string) => {
@@ -141,13 +157,17 @@ export function useMaintenanceNotifications() {
     }
   }, [preferences, isPermissionGranted, isNativePlatform]);
 
-  // Rappel de maintenance planifiée
+  // Rappel de maintenance planifiée avec vérification d'assignation
   const showMaintenanceReminder = useCallback(async (
     maintenanceTitle: string, 
     dueDate: string, 
-    equipment?: string
+    equipment?: string,
+    assignedTechnicians?: string[]
   ) => {
-    if (!preferences.enabled || !preferences.maintenanceReminders || !isPermissionGranted) return;
+    if (!preferences.enabled || !preferences.maintenanceReminders || !isPermissionGranted || !user) return;
+    
+    // Vérifier si l'utilisateur est assigné à cette maintenance
+    if (assignedTechnicians && !assignedTechnicians.includes(user.id)) return;
 
     try {
       const scheduledDate = new Date();
@@ -173,17 +193,21 @@ export function useMaintenanceNotifications() {
     } catch (error) {
       console.error('Erreur rappel maintenance:', error);
     }
-  }, [preferences, isPermissionGranted]);
+  }, [preferences, isPermissionGranted, user]);
 
-  // Planifier plusieurs rappels pour une maintenance
+  // Planifier plusieurs rappels pour une maintenance avec vérification d'assignation
   const scheduleMaintenanceReminders = useCallback(async (
     maintenanceId: string,
     title: string,
     dueDate: string,
     equipment?: string,
-    customReminderDays?: number[]
+    customReminderDays?: number[],
+    assignedTechnicians?: string[]
   ) => {
-    if (!preferences.enabled || !preferences.maintenanceReminders || !isPermissionGranted) return;
+    if (!preferences.enabled || !preferences.maintenanceReminders || !isPermissionGranted || !user) return;
+    
+    // Vérifier si l'utilisateur est assigné à cette maintenance
+    if (assignedTechnicians && !assignedTechnicians.includes(user.id)) return;
 
     const reminderDays = customReminderDays || [preferences.reminderDays, 0]; // Par défaut: rappel + jour même
 
@@ -215,7 +239,7 @@ export function useMaintenanceNotifications() {
     } catch (error) {
       console.error('Erreur programmation rappels:', error);
     }
-  }, [preferences, isPermissionGranted]);
+  }, [preferences, isPermissionGranted, user]);
 
   // Test notification
   const sendTestNotification = useCallback(async () => {

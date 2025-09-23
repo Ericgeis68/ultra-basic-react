@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { InterventionFormData } from '@/types/intervention'; // Assuming this type is defined or will be defined
+import { InterventionFormData } from '@/types/intervention';
+import { useCustomAuth } from '@/hooks/useCustomAuth';
 
 export type MaintenanceTask = {
   id: string;
@@ -30,14 +31,19 @@ export function useMaintenance() {
   const [maintenances, setMaintenances] = useState<MaintenanceTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { user } = useCustomAuth();
 
   const fetchMaintenances = useCallback(async () => {
+    if (!user) return;
+    
     setLoading(true);
     setError(null);
     try {
+      // Filtrer les maintenances selon l'utilisateur connecté (assigned_technicians)
       const { data, error } = await supabase
         .from('maintenances')
         .select('*')
+        .or(`assigned_technicians.cs.["${user.id}"],assigned_technicians.is.null`)
         .order('next_due_date', { ascending: true });
 
       if (error) throw error;
@@ -87,7 +93,7 @@ export function useMaintenance() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchMaintenances();
