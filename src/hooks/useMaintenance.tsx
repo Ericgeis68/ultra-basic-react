@@ -34,7 +34,13 @@ export function useMaintenance() {
   const { user } = useCustomAuth();
 
   const fetchMaintenances = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      // Avoid indefinite loading when user is not yet available
+      setMaintenances([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -43,13 +49,49 @@ export function useMaintenance() {
       const { data, error } = await supabase
         .from('maintenances')
         .select('*')
-        .or(`assigned_technicians.cs.["${user.id}"],assigned_technicians.is.null`)
         .order('next_due_date', { ascending: true });
 
       if (error) throw error;
 
+      // Normaliser assigned_technicians et filtrer uniquement celles assignées à l'utilisateur courant
+      const normalizeTechnicians = (value: any): string[] => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value as string[];
+        if (typeof value === 'string') {
+          // JSON array string like '["id1","id2"]'
+          if (value.trim().startsWith('[')) {
+            try {
+              const parsed = JSON.parse(value);
+              return Array.isArray(parsed) ? (parsed as string[]) : [];
+            } catch {
+              return [];
+            }
+          }
+          // Postgres array literal like '{"id1","id2"}' or '{id1,id2}'
+          if (value.trim().startsWith('{') && value.trim().endsWith('}')) {
+            const inner = value.trim().slice(1, -1); // remove {}
+            if (!inner) return [];
+            return inner
+              .split(',')
+              .map(s => s.trim())
+              .map(s => s.replace(/^"|"$/g, '')) // remove surrounding quotes
+              .filter(Boolean);
+          }
+          // Single value string fallback
+          return [value];
+        }
+        return [];
+      };
+
+      const visibleMaintenances = (data || [])
+        .map((m: any) => ({
+          ...m,
+          assigned_technicians: normalizeTechnicians(m.assigned_technicians)
+        }))
+        .filter((m: any) => (m.assigned_technicians as string[]).includes(user.id));
+
       // Fetch equipment names for display
-      const equipmentIds = [...new Set(data.map(m => m.equipment_id).filter(Boolean))] as string[];
+      const equipmentIds = [...new Set(visibleMaintenances.map(m => m.equipment_id).filter(Boolean))] as string[];
       const { data: equipmentsData, error: equipmentError } = await supabase
         .from('equipments')
         .select('id, name')
@@ -59,7 +101,7 @@ export function useMaintenance() {
 
       const equipmentMap = new Map(equipmentsData.map(eq => [eq.id, eq.name]));
 
-      const typedMaintenances: MaintenanceTask[] = data.map(m => ({
+      const typedMaintenances: MaintenanceTask[] = visibleMaintenances.map(m => ({
         id: m.id,
         title: m.title,
         description: m.description || undefined,
@@ -70,7 +112,7 @@ export function useMaintenance() {
         last_completed_date: m.last_completed_date || undefined,
         equipment_id: m.equipment_id || undefined,
         equipment_name: m.equipment_id ? equipmentMap.get(m.equipment_id) : undefined,
-        assigned_technicians: m.assigned_technicians || undefined,
+        assigned_technicians: (m.assigned_technicians as string[]) || undefined,
         created_at: m.created_at,
         updated_at: m.updated_at || undefined,
         frequency_type: m.frequency_type as 'one-time' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'custom' | undefined,
@@ -97,6 +139,15 @@ export function useMaintenance() {
 
   useEffect(() => {
     fetchMaintenances();
+  }, [fetchMaintenances]);
+
+  // Se re-synchroniser immédiatement quand l'auth change (évite refresh manuel)
+  useEffect(() => {
+    const handler = () => {
+      fetchMaintenances();
+    };
+    window.addEventListener('auth:updated', handler);
+    return () => window.removeEventListener('auth:updated', handler);
   }, [fetchMaintenances]);
 
   const addMaintenance = async (newMaintenance: Omit<MaintenanceTask, 'id' | 'created_at' | 'updated_at'>) => {
@@ -239,8 +290,8 @@ export function useMaintenance() {
 
       if (error) throw error;
       
-      // Update maintenance status to 'in-progress'
-      await updateMaintenance(maintenanceId, { status: 'in-progress' });
+      // Remove the maintenance once an intervention is created
+      await deleteMaintenance(maintenanceId);
 
       toast({
         title: "Intervention créée",

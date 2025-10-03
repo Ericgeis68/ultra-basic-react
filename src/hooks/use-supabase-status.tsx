@@ -18,8 +18,8 @@ export function useSupabaseStatus() {
         }
         
         // Get project info from the URL
-        const projectUrl = "https://vrwnnlldufajuojkcqmm.supabase.co";
-        const projectId = "vrwnnlldufajuojkcqmm";
+        const projectUrl = "https://cdrssupabase.duckdns.org";
+        const projectId = "cdrssupabase";
         
         setProjectInfo({
           url: projectUrl,

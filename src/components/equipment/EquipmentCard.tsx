@@ -12,6 +12,7 @@ import EquipmentHealthBar from './EquipmentHealthBar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useEquipmentFieldVisibility } from '@/hooks/useEquipmentFieldVisibility';
 import { getEmptyFieldValue, getEmptyFieldValueSafe, getEmptyFieldListValue } from '@/lib/print-utils';
+import { formatDateDMY } from '@/lib/utils';
 
 interface EquipmentCardProps {
   equipment: Equipment;
@@ -46,12 +47,13 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
     manufacturer: printOptions.includeManufacturer === true,
     model: printOptions.includeModel === true,
     uf: printOptions.includeUF === true,
+    status: printOptions.includeStatus === true,
     purchase_date: printOptions.includePurchaseDate === true,
     inventory_number: printOptions.includeInventoryNumber === true,
     serial_number: printOptions.includeSerialNumber === true,
     supplier: printOptions.includeSupplier === true,
+    purchase_price: printOptions.includePurchasePrice === true,
     warranty_expiry: printOptions.includeWarranty === true,
-    description: false,
     health_percentage: printOptions.includeHealth === true,
     building: printOptions.includeBuilding === true || printOptions.includeLocation === true,
     service: printOptions.includeService === true,
@@ -62,7 +64,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
 
   // Options d'affichage conditionnelles pour l'impression
   const showImages = isPrintPreview ? (printOptions?.includeImages !== false) : true;
-  const showStatus = isPrintPreview ? (printOptions?.includeStatus !== false) : true;
+  const showStatus = effectiveFields.status === true;
   const showLoanStatus = isPrintPreview ? (printOptions?.includeLoanStatus !== false) : true;
   const showRelationships = false;
 
@@ -107,7 +109,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
     const groupNames = groups
       .filter(group => groupIds.includes(group.id))
       .map(group => group.name);
-    return groupNames.length > 0 ? groupNames.join(', ') : (isPrintPreview ? '\u00A0\u00A0\u00A0' : 'Groupes introuvables');
+    return groupNames.length > 0 ? groupNames.join(', ') : (isPrintPreview ? '\u00A0\u00A0\u00A0' : 'Aucun groupe');
   };
 
   const imageUrlToDisplay = getDisplayImage();
@@ -246,7 +248,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
     return Math.max(minPercent, 100 - reduction);
   };
 
-  return (
+    return (
     <CustomCard
       variant="default"
       hover
@@ -361,7 +363,15 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
           <div className="min-w-0 flex flex-col justify-center" style={{ height: `${32 * scaleFactor}px` }}>
             <p className="text-xs text-muted-foreground" style={{ fontSize: `${Math.round(printStyles.fontSize * 0.7)}px` }}>Achat</p>
             <p className={`font-medium ${printStyles.fieldSize}`} style={{ fontSize: `${Math.round(printStyles.fontSize * 0.8)}px` }}>
-              {isPrintPreview ? getEmptyFieldValue(equipment.purchase_date) : equipment.purchase_date}
+              {isPrintPreview ? getEmptyFieldValue(formatDateDMY(equipment.purchase_date)) : formatDateDMY(equipment.purchase_date) || (equipment.purchase_date || '')}
+            </p>
+          </div>
+        )}
+        {effectiveFields.purchase_price && (
+          <div className="min-w-0 flex flex-col justify-center" style={{ height: `${32 * scaleFactor}px` }}>
+            <p className="text-xs text-muted-foreground" style={{ fontSize: `${Math.round(printStyles.fontSize * 0.7)}px` }}>Prix</p>
+            <p className={`font-medium ${printStyles.fieldSize}`} style={{ fontSize: `${Math.round(printStyles.fontSize * 0.8)}px` }}>
+              {equipment.purchase_price != null ? `${equipment.purchase_price} €` : (isPrintPreview ? getEmptyFieldValue(undefined) : '')}
             </p>
           </div>
         )}
@@ -393,7 +403,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
           <div className="min-w-0 flex flex-col justify-center" style={{ height: `${32 * scaleFactor}px` }}>
             <p className="text-xs text-muted-foreground" style={{ fontSize: `${Math.round(printStyles.fontSize * 0.7)}px` }}>Garantie</p>
             <p className={`font-medium ${printStyles.fieldSize}`} style={{ fontSize: `${Math.round(printStyles.fontSize * 0.8)}px` }}>
-              {isPrintPreview ? getEmptyFieldValue(equipment.warranty_expiry) : equipment.warranty_expiry}
+              {isPrintPreview ? getEmptyFieldValue(formatDateDMY(equipment.warranty_expiry)) : formatDateDMY(equipment.warranty_expiry) || (equipment.warranty_expiry || '')}
             </p>
           </div>
         )}
@@ -401,7 +411,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
           <div className="min-w-0 flex flex-col justify-center" style={{ height: `${32 * scaleFactor}px` }}>
             <p className="text-xs text-muted-foreground" style={{ fontSize: `${Math.round(printStyles.fontSize * 0.7)}px` }}>Mise en service</p>
             <p className={`font-medium ${printStyles.fieldSize}`} style={{ fontSize: `${Math.round(printStyles.fontSize * 0.8)}px` }}>
-              {isPrintPreview ? getEmptyFieldValue(equipment.date_mise_en_service) : equipment.date_mise_en_service}
+              {isPrintPreview ? getEmptyFieldValue(formatDateDMY(equipment.date_mise_en_service)) : formatDateDMY(equipment.date_mise_en_service) || (equipment.date_mise_en_service || '')}
             </p>
           </div>
         )}

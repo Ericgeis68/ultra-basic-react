@@ -58,7 +58,7 @@ export async function uploadDocumentWithFile(
     description?: string | null;
     equipment_ids?: string[] | null;
     category: 'manual' | 'maintenance' | 'warranty' | 'certification' | 'procedure' | 'other';
-  }, // Exclude file-related fields and group_ids as they come from the file/join table
+  }, // Exclude file-related fields; groups handled via join table manager in callers
   file: File,
   groupIds: string[] // Pass groupIds separately for join table
 ): Promise<{ success: boolean; error?: string; document?: Document }> {

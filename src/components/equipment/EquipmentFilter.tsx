@@ -32,6 +32,32 @@ interface EquipmentFilterProps {
   setFilterManufacturer: (manufacturer: string) => void;
   filterUF: string;
   setFilterUF: (uf: string) => void;
+  filterInventory: string;
+  setFilterInventory: (inventory: string) => void;
+  filterPurchaseDateFrom: string;
+  setFilterPurchaseDateFrom: (date: string) => void;
+  filterPurchaseDateTo: string;
+  setFilterPurchaseDateTo: (date: string) => void;
+  filterServiceDateFrom: string;
+  setFilterServiceDateFrom: (date: string) => void;
+  filterServiceDateTo: string;
+  setFilterServiceDateTo: (date: string) => void;
+  filterWarrantyFrom: string;
+  setFilterWarrantyFrom: (date: string) => void;
+  filterWarrantyTo: string;
+  setFilterWarrantyTo: (date: string) => void;
+  filterPriceMin: string;
+  setFilterPriceMin: (price: string) => void;
+  filterPriceMax: string;
+  setFilterPriceMax: (price: string) => void;
+  filterHealthMin: string;
+  setFilterHealthMin: (health: string) => void;
+  filterHealthMax: string;
+  setFilterHealthMax: (health: string) => void;
+  filterLoanStatus: string;
+  setFilterLoanStatus: (status: string) => void;
+  filterType: string;
+  setFilterType: (type: string) => void;
   
   equipmentGroups: EquipmentGroup[];
   buildings: Building[];
@@ -42,6 +68,7 @@ interface EquipmentFilterProps {
   ufs: string[];
   uniqueNames: string[];
   uniqueModels: string[];
+  uniqueInventoryNumbers: string[];
   
   onClearFilters: () => void;
   hasActiveFilters: boolean;
@@ -61,6 +88,19 @@ const EquipmentFilter: React.FC<EquipmentFilterProps> = ({
   filterSupplier, setFilterSupplier,
   filterManufacturer, setFilterManufacturer,
   filterUF, setFilterUF,
+  filterInventory, setFilterInventory,
+  filterPurchaseDateFrom, setFilterPurchaseDateFrom,
+  filterPurchaseDateTo, setFilterPurchaseDateTo,
+  filterServiceDateFrom, setFilterServiceDateFrom,
+  filterServiceDateTo, setFilterServiceDateTo,
+  filterWarrantyFrom, setFilterWarrantyFrom,
+  filterWarrantyTo, setFilterWarrantyTo,
+  filterPriceMin, setFilterPriceMin,
+  filterPriceMax, setFilterPriceMax,
+  filterHealthMin, setFilterHealthMin,
+  filterHealthMax, setFilterHealthMax,
+  filterLoanStatus, setFilterLoanStatus,
+  filterType, setFilterType,
   equipmentGroups,
   buildings,
   services,
@@ -70,6 +110,7 @@ const EquipmentFilter: React.FC<EquipmentFilterProps> = ({
   ufs,
   uniqueNames,
   uniqueModels,
+  uniqueInventoryNumbers,
   onClearFilters,
   hasActiveFilters,
   isOpen,
@@ -82,39 +123,61 @@ const EquipmentFilter: React.FC<EquipmentFilterProps> = ({
     { value: 'faulty', label: 'En panne' },
   ];
 
+  const loanStatusOptions: ComboboxOption[] = [
+    { value: 'all', label: 'Tous les statuts de prêt' },
+    { value: 'available', label: 'Disponible' },
+    { value: 'loaned', label: 'En prêt' },
+  ];
+
+  const typeOptions: ComboboxOption[] = [
+    { value: 'all', label: 'Tous les types' },
+    { value: 'biomedical', label: 'Biomédical' },
+    { value: 'technique', label: 'Technique' },
+  ];
+
   const groupOptions: ComboboxOption[] = [
     { value: 'all', label: 'Tous les groupes' },
-    ...(equipmentGroups?.map(g => ({ value: g.id, label: g.name })) || []),
+    ...(equipmentGroups?.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+      .map(g => ({ value: g.id, label: g.name })) || []),
   ];
 
   const supplierOptions: ComboboxOption[] = [
       { value: 'all', label: 'Tous les fournisseurs' },
-      ...suppliers.map(s => ({ value: s, label: s }))
+      ...suppliers.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+        .map(s => ({ value: s, label: s }))
   ];
 
   const manufacturerOptions: ComboboxOption[] = [
       { value: 'all', label: 'Tous les fabricants' },
-      ...manufacturers.map(m => ({ value: m, label: m }))
+      ...manufacturers.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+        .map(m => ({ value: m, label: m }))
   ];
 
   const ufOptions: ComboboxOption[] = [
     { value: 'all', label: 'Toutes les UF' },
-    ...ufs.map(u => ({ value: u, label: u }))
+    ...ufs.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+      .map(u => ({ value: u, label: u }))
   ];
 
   const buildingOptions: ComboboxOption[] = [
       { value: 'all', label: 'Tous les bâtiments' },
-      ...buildings.map(b => ({ value: b.id, label: b.name }))
+      ...buildings
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+        .map(b => ({ value: b.id, label: b.name }))
   ];
   
   const serviceOptions: ComboboxOption[] = [
       { value: 'all', label: 'Tous les services' },
-      ...services.map(s => ({ value: s.id, label: s.name }))
+      ...services
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+        .map(s => ({ value: s.id, label: s.name }))
   ];
 
   const locationOptions: ComboboxOption[] = [
       { value: 'all', label: 'Tous les locaux' },
-      ...locations.map(l => ({ value: l.id, label: l.name }))
+      ...locations
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+        .map(l => ({ value: l.id, label: l.name }))
   ];
     
   return (
@@ -168,6 +231,18 @@ const EquipmentFilter: React.FC<EquipmentFilterProps> = ({
                         placeholder="Filtrer par statut"
                         searchPlaceholder="Rechercher statut..."
                         emptyPlaceholder="Aucun statut trouvé."
+                    />
+                </div>
+
+                <div>
+                    <Label htmlFor="type-filter">Type d'équipement</Label>
+                    <Combobox
+                        options={typeOptions}
+                        value={filterType}
+                        onChange={setFilterType}
+                        placeholder="Filtrer par type"
+                        searchPlaceholder="Rechercher type..."
+                        emptyPlaceholder="Aucun type trouvé."
                     />
                 </div>
 
@@ -253,6 +328,170 @@ const EquipmentFilter: React.FC<EquipmentFilterProps> = ({
                         searchPlaceholder="Rechercher local..."
                         emptyPlaceholder="Aucun local trouvé."
                     />
+                </div>
+
+                <div>
+                    <Label htmlFor="inventory-filter">Numéro d'inventaire</Label>
+                    <Autocomplete
+                        id="inventory-filter"
+                        value={filterInventory}
+                        onValueChange={setFilterInventory}
+                        suggestions={uniqueInventoryNumbers}
+                        placeholder="Filtrer par numéro d'inventaire..."
+                        emptyMessage="Aucun numéro d'inventaire correspondant."
+                    />
+                </div>
+
+                <div>
+                    <Label htmlFor="loan-status-filter">Statut de prêt</Label>
+                    <Combobox
+                        options={loanStatusOptions}
+                        value={filterLoanStatus}
+                        onChange={setFilterLoanStatus}
+                        placeholder="Filtrer par statut de prêt"
+                        searchPlaceholder="Rechercher statut..."
+                        emptyPlaceholder="Aucun statut trouvé."
+                    />
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Date d'achat</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label htmlFor="purchase-date-from" className="text-sm text-muted-foreground">Du</Label>
+                            <input
+                                id="purchase-date-from"
+                                type="date"
+                                value={filterPurchaseDateFrom}
+                                onChange={(e) => setFilterPurchaseDateFrom(e.target.value)}
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="purchase-date-to" className="text-sm text-muted-foreground">Au</Label>
+                            <input
+                                id="purchase-date-to"
+                                type="date"
+                                value={filterPurchaseDateTo}
+                                onChange={(e) => setFilterPurchaseDateTo(e.target.value)}
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Date de mise en service</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label htmlFor="service-date-from" className="text-sm text-muted-foreground">Du</Label>
+                            <input
+                                id="service-date-from"
+                                type="date"
+                                value={filterServiceDateFrom}
+                                onChange={(e) => setFilterServiceDateFrom(e.target.value)}
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="service-date-to" className="text-sm text-muted-foreground">Au</Label>
+                            <input
+                                id="service-date-to"
+                                type="date"
+                                value={filterServiceDateTo}
+                                onChange={(e) => setFilterServiceDateTo(e.target.value)}
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Date d'expiration de garantie</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label htmlFor="warranty-from" className="text-sm text-muted-foreground">Du</Label>
+                            <input
+                                id="warranty-from"
+                                type="date"
+                                value={filterWarrantyFrom}
+                                onChange={(e) => setFilterWarrantyFrom(e.target.value)}
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="warranty-to" className="text-sm text-muted-foreground">Au</Label>
+                            <input
+                                id="warranty-to"
+                                type="date"
+                                value={filterWarrantyTo}
+                                onChange={(e) => setFilterWarrantyTo(e.target.value)}
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Prix d'achat</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label htmlFor="price-min" className="text-sm text-muted-foreground">Min (€)</Label>
+                            <input
+                                id="price-min"
+                                type="number"
+                                step="0.01"
+                                value={filterPriceMin}
+                                onChange={(e) => setFilterPriceMin(e.target.value)}
+                                placeholder="Prix minimum"
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="price-max" className="text-sm text-muted-foreground">Max (€)</Label>
+                            <input
+                                id="price-max"
+                                type="number"
+                                step="0.01"
+                                value={filterPriceMax}
+                                onChange={(e) => setFilterPriceMax(e.target.value)}
+                                placeholder="Prix maximum"
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Pourcentage de santé</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Label htmlFor="health-min" className="text-sm text-muted-foreground">Min (%)</Label>
+                            <input
+                                id="health-min"
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={filterHealthMin}
+                                onChange={(e) => setFilterHealthMin(e.target.value)}
+                                placeholder="Santé minimum"
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="health-max" className="text-sm text-muted-foreground">Max (%)</Label>
+                            <input
+                                id="health-max"
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={filterHealthMax}
+                                onChange={(e) => setFilterHealthMax(e.target.value)}
+                                placeholder="Santé maximum"
+                                className="w-full px-3 py-2 border border-input rounded-md"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         </ScrollArea>

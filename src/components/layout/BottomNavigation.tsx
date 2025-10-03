@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { navItems } from './Sidebar'; // Re-use navItems from Sidebar
@@ -13,6 +13,7 @@ import useEmblaCarousel from 'embla-carousel-react'; // Import Embla Carousel
 
 const BottomNavigation: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, isLoading } = useAuth();
   // Initialiser Embla Carousel pour le glissement horizontal
   const [emblaRef] = useEmblaCarousel({
@@ -80,6 +81,26 @@ const BottomNavigation: React.FC = () => {
                     </span>
                   </div>
                 );
+
+                // Gestion spéciale pour le scanner - rediriger vers la page équipements avec scan=true
+                if (item.href === '/scanner') {
+                  return (
+                    <button
+                      key={item.href}
+                      onClick={() => navigate('/equipment?scan=true')}
+                      className="embla__slide flex-shrink-0 w-[80px] flex justify-center items-center h-full"
+                    >
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {linkContent}
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="mb-2">
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    </button>
+                  );
+                }
 
                 return (
                   <NavLink

@@ -12,6 +12,8 @@ import { CustomAuthProvider } from './hooks/useCustomAuth.tsx' // Import de Cust
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"; // Import de QueryClientProvider
 import { TooltipProvider } from "@/components/ui/tooltip"; // Import de TooltipProvider
 
+// Web Push annulé: ne pas enregistrer de Service Worker ici
+
 const queryClient = new QueryClient(); // Initialisation de QueryClient ici
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

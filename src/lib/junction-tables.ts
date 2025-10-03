@@ -79,6 +79,35 @@ export const junctionTableManager = {
         console.error('Erreur lors de l\'insertion des nouvelles relations équipement-groupe:', insertError);
         throw insertError;
       }
+
+      // Propager le descriptif du groupe vers l'équipement si vide
+      try {
+        const { data: eqData } = await supabase
+          .from('equipments')
+          .select('id, description')
+          .eq('id', equipmentId)
+          .single();
+
+        const currentDescription = (eqData as any)?.description as string | null | undefined;
+        if (!currentDescription || String(currentDescription).trim().length === 0) {
+          if (newGroupIds.length > 0) {
+            const { data: groups } = await supabase
+              .from('equipment_groups')
+              .select('id, description')
+              .in('id', newGroupIds);
+
+            const groupWithDescription = (groups || []).find(g => g.description && String(g.description).trim().length > 0);
+            if (groupWithDescription) {
+              await supabase
+                .from('equipments')
+                .update({ description: groupWithDescription.description })
+                .eq('id', equipmentId);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Propagation du descriptif depuis le groupe ignorée:', e);
+      }
     }
   },
 
@@ -114,6 +143,128 @@ export const junctionTableManager = {
         console.error('Erreur lors de l\'insertion des nouvelles relations groupe-équipement:', insertError);
         throw insertError;
       }
+
+      // Propager le descriptif du groupe vers les équipements sans descriptif
+      try {
+        // Récupérer la description du groupe
+        const { data: groupData } = await supabase
+          .from('equipment_groups')
+          .select('id, description')
+          .eq('id', groupId)
+          .single();
+
+        const groupDescription = (groupData as any)?.description as string | null | undefined;
+        if (groupDescription && String(groupDescription).trim().length > 0) {
+          // Récupérer les équipements pour connaître ceux à mettre à jour
+          const { data: equipmentsData } = await supabase
+            .from('equipments')
+            .select('id, description')
+            .in('id', newEquipmentIds);
+
+          const equipmentsToUpdate = (equipmentsData || [])
+            .filter(eq => !eq.description || String(eq.description).trim().length === 0)
+            .map(eq => eq.id);
+
+          if (equipmentsToUpdate.length > 0) {
+            await supabase
+              .from('equipments')
+              .update({ description: groupDescription })
+              .in('id', equipmentsToUpdate);
+          }
+        }
+      } catch (e) {
+        console.warn('Propagation du descriptif depuis le groupe (côté groupe) ignorée:', e);
+      }
+    }
+  },
+
+  /**
+   * Propage la description d'un groupe vers tous ses équipements associés
+   * qui n'ont pas déjà une description personnalisée.
+   * @param groupId L'ID du groupe.
+   */
+  async propagateGroupDescriptionToEquipments(groupId: string): Promise<void> {
+    try {
+      // Récupérer la description du groupe
+      const { data: groupData } = await supabase
+        .from('equipment_groups')
+        .select('id, description')
+        .eq('id', groupId)
+        .single();
+
+      const groupDescription = (groupData as any)?.description as string | null | undefined;
+      if (!groupDescription || String(groupDescription).trim().length === 0) {
+        console.log('Aucune description à propager pour le groupe:', groupId);
+        return;
+      }
+
+      // Récupérer tous les équipements associés à ce groupe
+      const { data: relations } = await supabase
+        .from('equipment_group_members')
+        .select('equipment_id')
+        .eq('group_id', groupId);
+
+      if (!relations || relations.length === 0) {
+        console.log('Aucun équipement associé au groupe:', groupId);
+        return;
+      }
+
+      const equipmentIds = relations.map(r => r.equipment_id);
+
+      // Récupérer les équipements pour connaître ceux à mettre à jour
+      const { data: equipmentsData } = await supabase
+        .from('equipments')
+        .select('id, description')
+        .in('id', equipmentIds);
+
+      // Récupérer toutes les descriptions de groupes existantes pour comparaison
+      const { data: allGroups } = await supabase
+        .from('equipment_groups')
+        .select('id, description');
+      
+      const groupDescriptions = (allGroups || [])
+        .filter(g => g.description && String(g.description).trim().length > 0)
+        .map(g => String(g.description).trim());
+
+      // Séparer les équipements selon leur statut de description
+      const equipmentsWithPersonalDesc = [];
+      const equipmentsToUpdate = [];
+      
+      for (const eq of equipmentsData || []) {
+        const currentDesc = eq.description ? String(eq.description).trim() : '';
+        if (!currentDesc || groupDescriptions.includes(currentDesc)) {
+          // Pas de description OU description qui correspond à une description de groupe existante
+          equipmentsToUpdate.push(eq.id);
+        } else {
+          // Description personnalisée qui ne correspond à aucun groupe
+          equipmentsWithPersonalDesc.push(eq);
+        }
+      }
+
+      // Mettre à jour les équipements appropriés
+      if (equipmentsToUpdate.length > 0) {
+        const { error } = await supabase
+          .from('equipments')
+          .update({ description: groupDescription })
+          .in('id', equipmentsToUpdate);
+
+        if (error) {
+          console.error('Erreur lors de la propagation de la description:', error);
+          throw error;
+        }
+
+        console.log(`Description propagée vers ${equipmentsToUpdate.length} équipements du groupe ${groupId}`);
+      }
+
+      // Retourner les statistiques pour informer l'utilisateur
+      return {
+        updated: equipmentsToUpdate.length,
+        skipped: equipmentsWithPersonalDesc.length,
+        skippedEquipments: equipmentsWithPersonalDesc
+      };
+    } catch (error) {
+      console.error('Erreur lors de la propagation de la description du groupe:', error);
+      throw error;
     }
   },
 

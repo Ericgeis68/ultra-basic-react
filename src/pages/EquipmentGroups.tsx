@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, LayoutGrid, List, Edit, Search, WrenchIcon, X, ImageIcon, Tag, FileText, Settings, MapPin, Calendar, Package, Image, Upload, Download, Printer } from 'lucide-react';
+import { Plus, LayoutGrid, List, Edit, Trash, Search, WrenchIcon, X, ImageIcon, Tag, FileText, Settings, MapPin, Calendar, Package, Image, Upload, Download, Printer } from 'lucide-react';
 import CustomCard from '@/components/ui/CustomCard';
 import {
   Table,
@@ -31,6 +31,17 @@ import EquipmentSelector from '@/components/equipment/EquipmentSelector';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { uploadFileToSupabase, deleteFileFromSupabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { junctionTableManager } from '@/lib/junction-tables'; // Assurez-vous que c'est bien 'junctionTableManager'
 
 const EquipmentGroupsPage = () => {
@@ -41,6 +52,9 @@ const EquipmentGroupsPage = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<EquipmentGroup | null>(null);
+  const [deletePolicy, setDeletePolicy] = useState<'detach' | 'cleanup'>('cleanup');
 
   const {
     data: groups,
@@ -209,6 +223,30 @@ const EquipmentGroupsPage = () => {
       // Gérer les relations avec la table de jonction
       if (groupId) {
         await junctionTableManager.updateGroupEquipmentMembers(groupId, formData.equipment_ids);
+        // Propager la description du groupe vers les équipements associés si pertinent
+        try {
+          const result: any = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
+          if (result && typeof result === 'object') {
+            if (result.updated > 0 && result.skipped > 0) {
+              toast({
+                title: "Description mise à jour",
+                description: `Description propagée vers ${result.updated} équipement(s). ${result.skipped} équipement(s) avec description personnalisée ont été préservés.`,
+              });
+            } else if (result.updated > 0) {
+              toast({
+                title: "Description mise à jour",
+                description: `Description propagée vers ${result.updated} équipement(s).`,
+              });
+            } else if (result.skipped > 0) {
+              toast({
+                title: "Description du groupe mise à jour",
+                description: `Tous les équipements associés (${result.skipped}) ont déjà une description personnalisée qui a été préservée.`,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Propagation de la description du groupe échouée (ignorée):', e);
+        }
       }
 
       toast({
@@ -254,17 +292,24 @@ const EquipmentGroupsPage = () => {
               </div>
             )}
             <h3 className="text-lg font-semibold">{group.name}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
             <p className="text-xs text-muted-foreground mt-2">
               {group.associated_equipment_ids ? group.associated_equipment_ids.length : 0} équipements
             </p>
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-1">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => handleOpenEditDialog(group)}
               >
                 <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-destructive"
+                onClick={() => { setGroupToDelete(group); setIsDeleteAlertOpen(true); }}
+              >
+                <Trash className="h-4 w-4" />
               </Button>
             </div>
           </CustomCard>
@@ -284,7 +329,7 @@ const EquipmentGroupsPage = () => {
         <TableRow>
           <TableHead>Photo</TableHead>
           <TableHead>Nom</TableHead>
-          <TableHead>Description</TableHead>
+          
           <TableHead>Nombre d'équipements</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
@@ -311,22 +356,31 @@ const EquipmentGroupsPage = () => {
                 )}
               </TableCell>
               <TableCell className="font-medium">{group.name}</TableCell>
-              <TableCell>{group.description}</TableCell>
               <TableCell>{group.associated_equipment_ids?.length || 0}</TableCell>
               <TableCell className="text-right">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleOpenEditDialog(group)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <div className="flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleOpenEditDialog(group)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    onClick={() => { setGroupToDelete(group); setIsDeleteAlertOpen(true); }}
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))
         ) : (
           <TableRow>
-            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
               Aucun groupe d'équipement trouvé.
             </TableCell>
           </TableRow>
@@ -499,6 +553,98 @@ const EquipmentGroupsPage = () => {
         title="Sélectionner les équipements pour ce groupe"
         placeholder="Rechercher un équipement à ajouter au groupe..."
       />
+
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le groupe "{groupToDelete?.name}" ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choisissez la politique pour les relations: détacher seulement, ou détacher et supprimer les documents/pièces orphelins.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" className="h-4 w-4" checked={deletePolicy === 'cleanup'} onChange={() => setDeletePolicy('cleanup')} />
+              Supprimer le groupe, puis supprimer les documents/pièces orphelins
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" className="h-4 w-4" checked={deletePolicy === 'detach'} onChange={() => setDeletePolicy('detach')} />
+              Supprimer uniquement le groupe (ne supprime pas les documents/pièces)
+            </label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={async () => {
+                if (!groupToDelete) { setIsDeleteAlertOpen(false); return; }
+                try {
+                  // Detach equipments
+                  await supabase.from('equipment_group_members').delete().eq('group_id', groupToDelete.id);
+                  // Detach documents and optionally cleanup
+                  const { data: docMembers } = await supabase
+                    .from('document_group_members')
+                    .select('document_id')
+                    .eq('group_id', groupToDelete.id);
+                  const documentIds = (docMembers || []).map(m => m.document_id);
+                  if (documentIds.length > 0) {
+                    await supabase.from('document_group_members').delete().eq('group_id', groupToDelete.id);
+                    if (deletePolicy === 'cleanup') {
+                      for (const docId of documentIds) {
+                        const [{ data: otherGroups }, { data: docRow }] = await Promise.all([
+                          supabase.from('document_group_members').select('group_id').eq('document_id', docId),
+                          supabase.from('documents').select('id, equipment_ids').eq('id', docId).single()
+                        ]);
+                        const hasOtherGroups = (otherGroups || []).length > 0;
+                        const hasEquipmentIds = Array.isArray(docRow?.equipment_ids) && (docRow?.equipment_ids?.length || 0) > 0;
+                        if (!hasOtherGroups && !hasEquipmentIds) {
+                          await supabase.from('documents').delete().eq('id', docId);
+                        }
+                      }
+                    }
+                  }
+                  // Detach parts and optionally cleanup
+                  const { data: partMembers } = await supabase
+                    .from('part_group_members')
+                    .select('part_id')
+                    .eq('group_id', groupToDelete.id);
+                  const partIds = (partMembers || []).map(m => m.part_id);
+                  if (partIds.length > 0) {
+                    await supabase.from('part_group_members').delete().eq('group_id', groupToDelete.id);
+                    if (deletePolicy === 'cleanup') {
+                      for (const partId of partIds) {
+                        const [{ data: otherGroups }, { data: partRow }] = await Promise.all([
+                          supabase.from('part_group_members').select('group_id').eq('part_id', partId),
+                          supabase.from('parts').select('id, equipment_ids').eq('id', partId).single()
+                        ]);
+                        const hasOtherGroups = (otherGroups || []).length > 0;
+                        const hasEquipmentIds = Array.isArray(partRow?.equipment_ids) && (partRow?.equipment_ids?.length || 0) > 0;
+                        if (!hasOtherGroups && !hasEquipmentIds) {
+                          await supabase.from('parts').delete().eq('id', partId);
+                        }
+                      }
+                    }
+                  }
+                  // Delete shared image
+                  if (groupToDelete.shared_image_url) {
+                    await deleteFileFromSupabase('group_images', groupToDelete.shared_image_url);
+                  }
+                  // Delete group
+                  await supabase.from('equipment_groups').delete().eq('id', groupToDelete.id);
+                  setIsDeleteAlertOpen(false);
+                  setGroupToDelete(null);
+                  setDeletePolicy('cleanup');
+                  toast({ title: 'Groupe supprimé', description: 'Relations détachées et suppression effectuée.' });
+                } catch (e: any) {
+                  toast({ title: 'Erreur', description: e.message || 'Suppression impossible', variant: 'destructive' });
+                }
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

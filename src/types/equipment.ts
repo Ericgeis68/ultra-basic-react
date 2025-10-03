@@ -27,10 +27,12 @@ export interface Equipment {
   name: string;
   model: string | null;
   manufacturer: string | null;
-  description?: string | null;
   supplier: string | null;
+  description?: string | null;
+  equipment_type?: 'biomedical' | 'technique' | null;
   status: EquipmentStatus;
   health_percentage: number | null;
+  purchase_price: number | null;
   date_mise_en_service: string | null; // Stored as YYYY-MM-DD in DB
   purchase_date: string | null; // Stored as YYYY-MM-DD in DB
   warranty_expiry: string | null; // Stored as YYYY-MM-DD in DB
@@ -39,14 +41,13 @@ export interface Equipment {
   service_id: string | null;
   location_id: string | null;
   image_url: string | null;
-  relationships: EquipmentRelationship[] | null;
   // `equipment_group_ids` est maintenant géré via la table de jonction `equipment_group_members`
   // Cette propriété est ajoutée pour la commodité de l'UI après avoir récupéré les relations
   associated_group_ids?: string[];
-  equipment_group_ids?: string[]; // For UI convenience
+  // Propriété legacy pour compatibilité de lecture seule dans l'UI
+  equipment_group_ids?: string[];
   inventory_number: string | null;
   serial_number: string | null;
-  tag_number?: string | null; // Additional tag number field
   loan_status: boolean; // Indique si l'équipement est en prêt
   created_at?: string;
   updated_at?: string;

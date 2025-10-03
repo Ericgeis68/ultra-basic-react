@@ -12,10 +12,12 @@ interface EquipmentFieldVisibilitySettings {
     manufacturer: boolean;
     model: boolean;
     uf: boolean;
+    status: boolean;
     purchase_date: boolean;
     inventory_number: boolean;
     serial_number: boolean;
     supplier: boolean;
+    purchase_price: boolean;
     warranty_expiry: boolean;
     health_percentage: boolean;
     building: boolean;
@@ -29,10 +31,12 @@ interface EquipmentFieldVisibilitySettings {
     manufacturer: boolean;
     model: boolean;
     uf: boolean;
+    status: boolean;
     purchase_date: boolean;
     inventory_number: boolean;
     serial_number: boolean;
     supplier: boolean;
+    purchase_price: boolean;
     warranty_expiry: boolean;
     health_percentage: boolean;
     building: boolean;
@@ -49,10 +53,12 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     manufacturer: true,
     model: true,
     uf: true,
+    status: true,
     purchase_date: true,
     inventory_number: true,
     serial_number: true,
     supplier: false,
+    purchase_price: false,
     warranty_expiry: false,
     health_percentage: true,
     building: false,
@@ -66,10 +72,12 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     manufacturer: true,
     model: true,
     uf: true,
+    status: true,
     purchase_date: false,
     inventory_number: true,
     serial_number: true,
     supplier: false,
+    purchase_price: false,
     warranty_expiry: false,
     health_percentage: true,
     building: false,
@@ -85,10 +93,12 @@ const fieldLabels = {
   manufacturer: 'Fabricant',
   model: 'Modèle',
   uf: 'UF',
+  status: 'Statut',
   purchase_date: 'Date d\'achat',
   inventory_number: 'Numéro d\'inventaire',
   serial_number: 'Numéro de série',
   supplier: 'Fournisseur',
+  purchase_price: 'Prix d\'achat',
   warranty_expiry: 'Fin de garantie',
   health_percentage: 'État de santé',
   building: 'Bâtiment',

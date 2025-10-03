@@ -114,7 +114,7 @@ export const generateInterventionsPDF = (interventions: InterventionUI[], data: 
   // Date and count
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  yPosition = addText(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, margin, yPosition);
+  yPosition = addText(`Généré le ${(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}`, margin, yPosition);
   yPosition = addText(`Nombre d'interventions: ${interventions.length}`, margin, yPosition);
   yPosition += 10;
 
@@ -157,7 +157,7 @@ export const generateInterventionsPDF = (interventions: InterventionUI[], data: 
           getTypeText(intervention.type),
           getStatusText(intervention.status),
           getEquipmentName(intervention.equipmentId),
-          intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : '',
+          intervention.scheduled_date ? (() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : '',
           intervention.completedDate || '',
           intervention.technicians.join(', ')
         ];

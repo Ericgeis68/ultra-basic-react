@@ -27,32 +27,43 @@ export function NotificationBell() {
   const { maintenances } = useMaintenance();
   const { showUrgentAlert, isEnabled } = useMaintenanceNotifications();
   const [combinedNotifications, setCombinedNotifications] = useState<CombinedNotification[]>([]);
+  const [nowTick, setNowTick] = useState(0);
 
   // Combiner toutes les notifications
   useEffect(() => {
     const combined: CombinedNotification[] = [];
 
-    // Ajouter les notifications utilisateur
-    userNotifications.forEach(notif => {
-      combined.push({
-        id: notif.id,
-        type: 'user',
-        title: notif.title,
-        description: notif.description || '',
-        priority: 'medium', // Priorité par défaut
-        scheduled_date: notif.scheduled_date,
-        is_read: notif.is_read,
-        is_completed: notif.is_completed
+    // Heure courante pour filtrage cohérent avec le déclenchement/toast
+    const now = new Date();
+
+    // Ajouter les notifications utilisateur DUES (scheduled_date <= now)
+    userNotifications
+      .filter(n => n && typeof n.id === 'string')
+      .filter(n => !n.is_completed)
+      .filter(n => {
+        const at = new Date(n.scheduled_date).getTime();
+        return Number.isFinite(at) && at <= now.getTime();
+      })
+      .forEach(notif => {
+        combined.push({
+          id: notif.id,
+          type: 'user',
+          title: notif.title,
+          description: notif.description || '',
+          priority: 'medium',
+          scheduled_date: notif.scheduled_date,
+          is_read: notif.is_read,
+          is_completed: notif.is_completed
+        });
       });
-    });
 
     // Ajouter les maintenances urgentes et en retard
-    const now = new Date();
+    const now2 = new Date();
     maintenances.forEach(maintenance => {
       if (maintenance.status === 'completed' || !maintenance.notification_enabled) return;
 
       const dueDate = new Date(maintenance.next_due_date);
-      const daysDiff = Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.floor((dueDate.getTime() - now2.getTime()) / (1000 * 60 * 60 * 24));
 
       let priority: 'low' | 'medium' | 'high' | 'urgent' = 'medium';
       let title = '';
@@ -96,7 +107,24 @@ export function NotificationBell() {
     });
 
     setCombinedNotifications(combined);
-  }, [userNotifications, maintenances]);
+  }, [userNotifications, maintenances, nowTick]);
+
+  // Tick every second to re-evaluate due state exactly on time
+  useEffect(() => {
+    const i = setInterval(() => setNowTick(t => (t + 1) % 1000000), 1000);
+    return () => clearInterval(i);
+  }, []);
+
+  // Rafraîchir la cloche immédiatement sur création de notification côté Realtime
+  useEffect(() => {
+    const recompute = () => setCombinedNotifications(prev => [...prev]);
+    window.addEventListener('auth:updated', recompute);
+    window.addEventListener('notifications:updated', recompute);
+    return () => {
+      window.removeEventListener('auth:updated', recompute);
+      window.removeEventListener('notifications:updated', recompute);
+    };
+  }, []);
 
   const handleMarkAsRead = async (notification: CombinedNotification) => {
     if (notification.type === 'user' && !notification.is_read) {
@@ -120,10 +148,8 @@ export function NotificationBell() {
     }
   };
 
-  const totalUnread = combinedNotifications.filter(n => 
-    (n.type === 'user' && !n.is_read) || 
-    (n.type === 'maintenance' && n.priority === 'urgent')
-  ).length;
+  // Compter tout ce qui est affiché dans la cloche pour aligner l'indicateur
+  const totalUnread = combinedNotifications.length;
 
   return (
     <DropdownMenu>
@@ -147,14 +173,14 @@ export function NotificationBell() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        <ScrollArea className="h-96">
+        <div className="max-h-[80vh] overflow-auto">
           {combinedNotifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
               Aucune notification
             </div>
           ) : (
             <div className="space-y-2 p-2">
-              {combinedNotifications.slice(0, 10).map(notification => (
+              {combinedNotifications.map(notification => (
                 <div
                   key={notification.id}
                   className={`p-3 rounded-lg border transition-colors ${
@@ -188,7 +214,7 @@ export function NotificationBell() {
                       {notification.scheduled_date && (
                         <p className="text-xs text-muted-foreground mb-2">
                           <Calendar className="w-3 h-3 inline mr-1" />
-                          {new Date(notification.scheduled_date).toLocaleDateString('fr-FR')}
+                          {(() => { const d = new Date(notification.scheduled_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}
                         </p>
                       )}
                       
@@ -224,7 +250,7 @@ export function NotificationBell() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

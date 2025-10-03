@@ -5,12 +5,13 @@ interface EquipmentFieldVisibilitySettings {
     manufacturer: boolean;
     model: boolean;
     uf: boolean;
+    status: boolean;
     purchase_date: boolean;
     inventory_number: boolean;
     serial_number: boolean;
     supplier: boolean;
+    purchase_price: boolean;
     warranty_expiry: boolean;
-    description: boolean;
     health_percentage: boolean;
     building: boolean;
     service: boolean;
@@ -23,12 +24,13 @@ interface EquipmentFieldVisibilitySettings {
     manufacturer: boolean;
     model: boolean;
     uf: boolean;
+    status: boolean;
     purchase_date: boolean;
     inventory_number: boolean;
     serial_number: boolean;
     supplier: boolean;
+    purchase_price: boolean;
     warranty_expiry: boolean;
-    description: boolean;
     health_percentage: boolean;
     building: boolean;
     service: boolean;
@@ -44,12 +46,13 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     manufacturer: true,
     model: true,
     uf: true,
+    status: true,
     purchase_date: true,
     inventory_number: true,
     serial_number: true,
     supplier: false,
+    purchase_price: false,
     warranty_expiry: false,
-    description: false,
     health_percentage: true,
     building: false,
     service: false,
@@ -62,12 +65,13 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     manufacturer: true,
     model: true,
     uf: true,
+    status: true,
     purchase_date: false,
     inventory_number: true,
     serial_number: true,
     supplier: false,
+    purchase_price: false,
     warranty_expiry: false,
-    description: false,
     health_percentage: true,
     building: false,
     service: false,

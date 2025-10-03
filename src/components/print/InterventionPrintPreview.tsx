@@ -351,7 +351,7 @@ const InterventionPrintPreview: React.FC<InterventionPrintPreviewProps> = ({
                   </div>
                 </div>
                 <div className="text-right text-sm text-gray-600">
-                    {new Date(intervention.scheduled_date).toLocaleDateString('fr-FR')}
+                    {(() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}
                 </div>
               </div>
 
@@ -364,12 +364,12 @@ const InterventionPrintPreview: React.FC<InterventionPrintPreviewProps> = ({
                     <span className="font-medium text-sm text-gray-700">Dates</span>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1 ml-5">
-                    <p><strong>Date d'intervention:</strong> {new Date(intervention.scheduled_date).toLocaleDateString('fr-FR')}</p>
+                    <p><strong>Date d'intervention:</strong> {(() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                     {intervention.start_date && (
-                      <p><strong>Date de début:</strong> {new Date(intervention.start_date).toLocaleDateString('fr-FR')}</p>
+                      <p><strong>Date de début:</strong> {(() => { const d = new Date(intervention.start_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                     )}
                     {intervention.completed_date && (
-                      <p><strong>Date de fin:</strong> {new Date(intervention.completed_date).toLocaleDateString('fr-FR')}</p>
+                      <p><strong>Date de fin:</strong> {(() => { const d = new Date(intervention.completed_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                     )}
                   </div>
                 </div>
@@ -423,8 +423,8 @@ const InterventionPrintPreview: React.FC<InterventionPrintPreviewProps> = ({
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-sm text-blue-800">{entry.technician_name}</span>
                           <span className="text-xs text-gray-500">
-                            {new Date(entry.date_start).toLocaleDateString('fr-FR')}
-                            {entry.date_end && ` (${new Date(entry.date_end).toLocaleDateString('fr-FR')})`}
+                            {(() => { const d = new Date(entry.date_start); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}
+                            {entry.date_end && ` (${(() => { const d = new Date(entry.date_end); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()})`}
                           </span>
                         </div>
                         <div className="text-sm text-gray-700 whitespace-pre-wrap break-words">
@@ -543,12 +543,12 @@ const InterventionPrintPreview: React.FC<InterventionPrintPreviewProps> = ({
                     <h4 className="font-semibold text-sm text-gray-800 mb-2">Informations générales</h4>
                     <div className="space-y-1 text-sm">
                       <p><strong>Équipement:</strong> {getEquipmentName(intervention.equipment_id)}</p>
-                      <p><strong>Date d'intervention:</strong> {new Date(intervention.scheduled_date).toLocaleDateString('fr-FR')}</p>
+                      <p><strong>Date d'intervention:</strong> {(() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                       {intervention.start_date && (
-                        <p><strong>Date de début:</strong> {new Date(intervention.start_date).toLocaleDateString('fr-FR')}</p>
+                        <p><strong>Date de début:</strong> {(() => { const d = new Date(intervention.start_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                       )}
                       {intervention.completed_date && (
-                        <p><strong>Date de fin:</strong> {new Date(intervention.completed_date).toLocaleDateString('fr-FR')}</p>
+                        <p><strong>Date de fin:</strong> {(() => { const d = new Date(intervention.completed_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                       )}
                     </div>
                   </div>
@@ -583,8 +583,8 @@ const InterventionPrintPreview: React.FC<InterventionPrintPreviewProps> = ({
                               overflowWrap: 'break-word'
                             }}>{entry.actions}</div>
                             <div className="text-gray-500 text-xs">
-                              {new Date(entry.date_start).toLocaleDateString('fr-FR')}
-                              {entry.date_end && ` - ${new Date(entry.date_end).toLocaleDateString('fr-FR')}`}
+                              {(() => { const d = new Date(entry.date_start); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}
+                              {entry.date_end && ` - ${(() => { const d = new Date(entry.date_end); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}`}
                             </div>
                             {entry.parts_used && entry.parts_used.length > 0 && (
                               <div className="text-gray-600 mt-2 break-words" style={{

@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { useIntegratedMaintenanceNotifications } from '@/hooks/useIntegratedMaintenanceNotifications';
 import { useMaintenance } from '@/hooks/useMaintenance';
-import { toast } from '@/hooks/use-toast';
+import { useMaintenanceNotifications } from '@/hooks/useMaintenanceNotifications';
 
 export function GlobalMaintenanceNotifications() {
   const { isEnabled } = useIntegratedMaintenanceNotifications();
   const { maintenances } = useMaintenance();
+  const { showUrgentAlert, showMaintenanceReminder, notifyMaintenanceNow } = useMaintenanceNotifications();
 
   useEffect(() => {
     if (!isEnabled || !maintenances.length) return;
@@ -25,43 +26,18 @@ export function GlobalMaintenanceNotifications() {
       const dueDateNormalized = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
       const daysDiff = Math.floor((dueDateNormalized.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Maintenances en retard
+      // Maintenances en retard → alerte urgente native immédiate
       if (daysDiff < 0) {
         const daysPastDue = Math.abs(daysDiff);
-        toast({
-          title: "🚨 Maintenance en retard",
-          description: (
-            <div className="space-y-2">
-              <div className="font-medium">{maintenance.title}</div>
-              <div className="text-sm text-muted-foreground">
-                Équipement: {maintenance.equipment_name}
-              </div>
-              <div className="text-sm text-destructive">
-                En retard de {daysPastDue} jour{daysPastDue > 1 ? 's' : ''}
-              </div>
-            </div>
-          ),
-          variant: "destructive",
-          duration: Infinity, // Ne se ferme pas automatiquement
-        });
+        showUrgentAlert(
+          `Maintenance en retard (${daysPastDue} jours): ${maintenance.title}`,
+          maintenance.equipment_name
+        );
       }
-      // Maintenances à réaliser aujourd'hui
+      // Maintenances à réaliser aujourd'hui: ne pas notifier immédiatement ici.
+      // Laisser les rappels planifiés (heures/jours avant) gérer l'heure exacte.
       else if (daysDiff === 0) {
-        toast({
-          title: "📅 Maintenance à réaliser aujourd'hui",
-          description: (
-            <div className="space-y-2">
-              <div className="font-medium">{maintenance.title}</div>
-              <div className="text-sm text-muted-foreground">
-                Équipement: {maintenance.equipment_name}
-              </div>
-              <div className="text-sm text-warning">
-                À réaliser aujourd'hui
-              </div>
-            </div>
-          ),
-          duration: Infinity, // Ne se ferme pas automatiquement
-        });
+        // noop: rely on scheduleMaintenanceReminders for exact timing
       }
       // Maintenances dues bientôt (selon les préférences)
       else if (daysDiff > 0 && daysDiff <= (maintenance.notification_time_before_value || 1)) {
@@ -81,21 +57,19 @@ export function GlobalMaintenanceNotifications() {
         }
 
         if (shouldNotify) {
-          toast({
-            title: "🔔 Rappel de maintenance",
-            description: (
-              <div className="space-y-2">
-                <div className="font-medium">{maintenance.title}</div>
-                <div className="text-sm text-muted-foreground">
-                  Équipement: {maintenance.equipment_name}
-                </div>
-                <div className="text-sm text-primary">
-                  À réaliser dans {daysDiff} jour{daysDiff > 1 ? 's' : ''}
-                </div>
-              </div>
-            ),
-            duration: Infinity, // Ne se ferme pas automatiquement
-          });
+          // Si l'échéance est très proche, préférer une notification immédiate
+          if (daysDiff <= 1) {
+            notifyMaintenanceNow(
+              maintenance.title,
+              maintenance.equipment_name
+            );
+          } else {
+            showMaintenanceReminder(
+              maintenance.title,
+              maintenance.next_due_date,
+              maintenance.equipment_name
+            );
+          }
         }
       }
     });
@@ -120,12 +94,10 @@ export function GlobalMaintenanceNotifications() {
         // Vérifier seulement les maintenances critiques en continu
         if (daysDiff < 0) {
           const daysPastDue = Math.abs(daysDiff);
-          toast({
-            title: "🚨 Maintenance en retard",
-            description: `${maintenance.title} - ${maintenance.equipment_name} - En retard de ${daysPastDue} jour${daysPastDue > 1 ? 's' : ''}`,
-            variant: "destructive",
-            duration: Infinity,
-          });
+          showUrgentAlert(
+            `Maintenance en retard (${daysPastDue} jours): ${maintenance.title}`,
+            maintenance.equipment_name
+          );
         }
       });
     }, 5 * 60 * 1000);

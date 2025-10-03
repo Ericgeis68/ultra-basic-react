@@ -186,7 +186,7 @@ const SingleInterventionPrintPreview: React.FC<SingleInterventionPrintPreviewPro
                         <span className="status-badge">{getStatusText(intervention.status || 'scheduled')}</span>
                       </td>
                       <td className="border border-gray-300 p-2">
-                        {intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}
+                        {intervention.scheduled_date ? (() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return 'Non définie'; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non définie'}
                       </td>
                       {printOptions.includeDetails && <td className="border border-gray-300 p-2 max-w-xs break-words whitespace-pre-wrap">{getEmptyFieldValue(intervention.actions)}</td>}
                       <td className="border border-gray-300 p-2">
@@ -245,12 +245,12 @@ const SingleInterventionPrintPreview: React.FC<SingleInterventionPrintPreviewPro
                         )}
                       </div>
                       <div className="space-y-2">
-                        <p><strong>Date d'intervention:</strong> {intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}</p>
+                        <p><strong>Date d'intervention:</strong> {intervention.scheduled_date ? (() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return 'Non définie'; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non définie'}</p>
                         {intervention.start_date && (
-                          <p><strong>Date de début:</strong> {new Date(intervention.start_date).toLocaleDateString('fr-FR')}</p>
+                          <p><strong>Date de début:</strong> {(() => { const d = new Date(intervention.start_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                         )}
                         {intervention.completed_date && (
-                          <p><strong>Date de fin:</strong> {new Date(intervention.completed_date).toLocaleDateString('fr-FR')}</p>
+                          <p><strong>Date de fin:</strong> {(() => { const d = new Date(intervention.completed_date); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
                         )}
                         {intervention.duration && (
                           <p><strong>Durée:</strong> {intervention.duration} minutes</p>
@@ -337,11 +337,11 @@ const SingleInterventionPrintPreview: React.FC<SingleInterventionPrintPreviewPro
                                 {entry.technician_name || 'Technicien inconnu'}
                               </span>
                               <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-                                {entry.date_start ? new Date(entry.date_start).toLocaleDateString('fr-FR') : 'Date inconnue'}
+                                {entry.date_start ? (() => { const d = new Date(entry.date_start); if (isNaN(d.getTime())) return 'Date inconnue'; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Date inconnue'}
                                 {entry.date_end ? 
-                                  (entry.date_start && new Date(entry.date_start).toLocaleDateString('fr-FR') === new Date(entry.date_end).toLocaleDateString('fr-FR') ? 
+                                  (entry.date_start && (() => { const s = new Date(entry.date_start); const e = new Date(entry.date_end); const sd = `${String(s.getDate()).padStart(2,'0')}/${String(s.getMonth()+1).padStart(2,'0')}/${s.getFullYear()}`; const ed = `${String(e.getDate()).padStart(2,'0')}/${String(e.getMonth()+1).padStart(2,'0')}/${e.getFullYear()}`; return sd === ed; })() ? 
                                     ' (Terminée)' : 
-                                    ` → ${new Date(entry.date_end).toLocaleDateString('fr-FR')}`) : 
+                                    ` → ${(() => { const d = new Date(entry.date_end); const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}`) : 
                                   ' (En cours)'}
                               </span>
                             </div>

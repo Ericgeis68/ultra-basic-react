@@ -59,7 +59,7 @@ const EquipmentDocumentsSection: React.FC<EquipmentDocumentsSectionProps> = ({
                   <p className="text-sm text-muted-foreground mt-1">{doc.description}</p>
                   <div className="flex items-center gap-4 mt-2">
                     <span className="text-xs text-muted-foreground">
-                      {doc.createdat ? new Date(doc.createdat).toLocaleDateString() : ''}
+                      {doc.createdat ? (() => { const d = new Date(doc.createdat); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : ''}
                     </span>
                     {doc.size !== undefined && doc.size !== null && (
                       <span className="text-xs text-muted-foreground">

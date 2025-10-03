@@ -45,7 +45,7 @@ const EquipmentPrintPreview = forwardRef<HTMLDivElement, EquipmentPrintPreviewPr
                   {options.title || 'Liste des équipements'}
                 </h1>
                 <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>
-                  Généré le {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}
+                  Généré le {(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()} à {new Date().toLocaleTimeString('fr-FR')}
                 </p>
               </div>
             )}

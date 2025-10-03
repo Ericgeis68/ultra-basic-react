@@ -28,95 +28,118 @@ const Settings = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <SettingsIcon className="h-6 w-6" />
-          Paramètres d'Administration
+    <div className="container mx-auto py-4 sm:py-8 px-2 sm:px-4">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+          <SettingsIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+          <span className="hidden sm:inline">Paramètres d'Administration</span>
+          <span className="sm:hidden">Paramètres</span>
         </h1>
-        <p className="text-gray-600 mt-2">Gérez les paramètres de l'application et les données de base.</p>
+        <p className="text-gray-600 mt-2 text-sm sm:text-base">Gérez les paramètres de l'application et les données de base.</p>
       </div>
 
       <Tabs defaultValue="menu" className="w-full">
-        <TabsList className="grid w-full grid-cols-9">
-          <TabsTrigger value="menu" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Menus Utilisateurs
-          </TabsTrigger>
-          <TabsTrigger value="fields" className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            Champs Équipements
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <UserCog className="h-4 w-4" />
-            Utilisateurs
-          </TabsTrigger>
-          <TabsTrigger value="facilities" className="flex items-center gap-2">
-            <Building className="h-4 w-4" />
-            Installations
-          </TabsTrigger>
-          <TabsTrigger value="ufs" className="flex items-center gap-2">
-            <Tag className="h-4 w-4" />
-            UF
-          </TabsTrigger>
-          <TabsTrigger value="equipment-import" className="flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            Import Équipements
-          </TabsTrigger>
-          <TabsTrigger value="parts-import" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Import Pièces
-          </TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto">
+          <TabsList className="inline-flex w-max min-w-full gap-1 p-1">
+            <TabsTrigger value="menu" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Menus Utilisateurs</span>
+              <span className="sm:hidden">Menus</span>
+            </TabsTrigger>
+            <TabsTrigger value="fields" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Champs Équipements</span>
+              <span className="sm:hidden">Champs</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notifications</span>
+              <span className="sm:hidden">Notif</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <UserCog className="h-4 w-4" />
+              <span className="hidden sm:inline">Utilisateurs</span>
+              <span className="sm:hidden">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="facilities" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Building className="h-4 w-4" />
+              <span className="hidden sm:inline">Installations</span>
+              <span className="sm:hidden">Inst</span>
+            </TabsTrigger>
+            <TabsTrigger value="ufs" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Tag className="h-4 w-4" />
+              <span className="hidden sm:inline">UF</span>
+              <span className="sm:hidden">UF</span>
+            </TabsTrigger>
+            <TabsTrigger value="equipment-import" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Import Équipements</span>
+              <span className="sm:hidden">Imp Eq</span>
+            </TabsTrigger>
+            <TabsTrigger value="parts-import" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Package className="h-4 w-4" />
+              <span className="hidden sm:inline">Import Pièces</span>
+              <span className="sm:hidden">Imp Pi</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="menu" className="space-y-6">
+        <TabsContent value="menu" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Gestion des Menus Utilisateurs</CardTitle>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-lg sm:text-xl">Gestion des Menus Utilisateurs</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               <UserMenuVisibilitySettings />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="fields" className="space-y-6">
-          <EquipmentFieldVisibilitySettings />
+        <TabsContent value="fields" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <EquipmentFieldVisibilitySettings />
+          </div>
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
-          <NotificationSettings />
+        <TabsContent value="notifications" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <NotificationSettings />
+          </div>
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-6">
+        <TabsContent value="users" className="space-y-4 sm:space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Gestion des Utilisateurs</CardTitle>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-lg sm:text-xl">Gestion des Utilisateurs</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               <UserManagement />
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="facilities" className="space-y-6">
-          <FacilitiesManagement />
+        <TabsContent value="facilities" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <FacilitiesManagement />
+          </div>
         </TabsContent>
 
-        <TabsContent value="ufs" className="space-y-6">
-          <UFManagement />
+        <TabsContent value="ufs" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <UFManagement />
+          </div>
         </TabsContent>
 
-        <TabsContent value="equipment-import" className="space-y-6">
-          <EquipmentBulkImport />
+        <TabsContent value="equipment-import" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <EquipmentBulkImport />
+          </div>
         </TabsContent>
 
-        <TabsContent value="parts-import" className="space-y-6">
-          <PartsBulkImport />
+        <TabsContent value="parts-import" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <PartsBulkImport />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

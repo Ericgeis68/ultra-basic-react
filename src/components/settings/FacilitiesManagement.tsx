@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Building, MapPin, Users, Upload, Download, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Building, MapPin, Users, Upload, Download, AlertTriangle, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import * as XLSX from 'xlsx';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
@@ -26,16 +27,30 @@ const FacilitiesManagement = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [duplicateDialog, setDuplicateDialog] = useState<DuplicateInfo | null>(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  // Progress UI for long-running imports
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+  const [progressMessage, setProgressMessage] = useState<string>('');
 
   // File input refs
   const buildingFileRef = useRef<HTMLInputElement>(null);
   const serviceFileRef = useRef<HTMLInputElement>(null);
   const locationFileRef = useRef<HTMLInputElement>(null);
+  const combinedFileRef = useRef<HTMLInputElement>(null);
 
   // Form states
   const [newBuilding, setNewBuilding] = useState({ name: '' });
   const [newService, setNewService] = useState({ name: '', building_id: '' });
   const [newLocation, setNewLocation] = useState({ name: '', service_id: '' });
+
+  // Inline edit states
+  const [editingBuildingId, setEditingBuildingId] = useState<string>('');
+  const [editingBuildingName, setEditingBuildingName] = useState<string>('');
+  const [editingServiceId, setEditingServiceId] = useState<string>('');
+  const [editingServiceName, setEditingServiceName] = useState<string>('');
+  const [editingLocationId, setEditingLocationId] = useState<string>('');
+  const [editingLocationName, setEditingLocationName] = useState<string>('');
 
   useEffect(() => {
     fetchData();
@@ -64,6 +79,84 @@ const FacilitiesManagement = () => {
       setLoading(false);
     }
   };
+
+  const bulkDeleteFacilities = async () => {
+    setResetLoading(true);
+    try {
+      // Détacher tous les équipements des installations pour éviter les erreurs de contraintes
+      const { error: eqUpdateError } = await supabase
+        .from('equipments')
+        .update({ building_id: null, service_id: null, location_id: null })
+        .not('id', 'is', null);
+      if (eqUpdateError) throw eqUpdateError;
+
+      // Détacher les locaux de leurs services (ne toucher qu'aux lignes concernées)
+      const { error: locDetachError } = await supabase
+        .from('locations')
+        .update({ service_id: null })
+        .not('service_id', 'is', null);
+      if (locDetachError) throw locDetachError;
+
+      // Supprimer d'abord tous les locaux (sans lister les IDs pour éviter des URLs trop longues)
+      const { error: locDelError } = await supabase
+        .from('locations')
+        .delete()
+        .not('id', 'is', null);
+      if (locDelError) throw locDelError;
+
+      // Vérifier qu'il ne reste plus de locaux (sécurité RLS)
+      const { data: remainingLocs, error: locCheckErr } = await supabase
+        .from('locations')
+        .select('id')
+        .limit(1);
+      if (locCheckErr) throw locCheckErr;
+      if ((remainingLocs || []).length > 0) {
+        throw new Error('Impossible de supprimer certains locaux (vérifiez les règles d’accès/RLS).');
+      }
+
+      // Détacher les services de leurs bâtiments (sécurité supplémentaires)
+      const { error: svcDetachError } = await supabase
+        .from('services')
+        .update({ building_id: null })
+        .not('building_id', 'is', null);
+      if (svcDetachError) throw svcDetachError;
+
+      // Supprimer ensuite tous les services (sécurisé: il ne reste plus de locaux)
+      const { error: svcDelError } = await supabase
+        .from('services')
+        .delete()
+        .not('id', 'is', null);
+      if (svcDelError) throw svcDelError;
+
+      // Supprimer enfin tous les bâtiments (sans lister les IDs)
+      const { error: bldDelError } = await supabase
+        .from('buildings')
+        .delete()
+        .not('id', 'is', null);
+      if (bldDelError) throw bldDelError;
+
+      // Mettre à jour l'état local
+      setBuildings([]);
+      setServices([]);
+      setLocations([]);
+
+      toast({
+        title: 'Succès',
+        description: 'Tous les bâtiments, services et locaux ont été supprimés.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.message || 'La suppression en masse a échoué.',
+        variant: 'destructive',
+      });
+    } finally {
+      setResetLoading(false);
+      setResetDialogOpen(false);
+    }
+  };
+
+  
 
   const checkDuplicateName = (name: string, type: 'buildings' | 'services' | 'locations'): boolean => {
     const normalizedName = name.trim().toLowerCase();
@@ -219,9 +312,18 @@ const FacilitiesManagement = () => {
   };
 
   const deleteBuilding = async (id: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce bâtiment ?")) return;
-
     try {
+      const { count, error: cntErr } = await supabase
+        .from('equipments')
+        .select('id', { count: 'exact', head: true })
+        .eq('building_id', id);
+      if (cntErr) throw cntErr;
+
+      const confirmMsg = (count || 0) > 0
+        ? `Attention: ${count} équipement(s) sont encore rattaché(s) à ce bâtiment. Voulez-vous vraiment le supprimer ?`
+        : "Êtes-vous sûr de vouloir supprimer ce bâtiment ?";
+      if (!window.confirm(confirmMsg)) return;
+
       const { error } = await supabase
         .from('buildings')
         .delete()
@@ -243,10 +345,53 @@ const FacilitiesManagement = () => {
     }
   };
 
-  const deleteService = async (id: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce service ?")) return;
+  const startEditBuilding = (id: string, currentName: string) => {
+    setEditingBuildingId(id);
+    setEditingBuildingName(currentName);
+  };
 
+  const saveEditBuilding = async () => {
+    const id = editingBuildingId;
+    const name = editingBuildingName.trim();
+    if (!id || !name) {
+      setEditingBuildingId('');
+      setEditingBuildingName('');
+      return;
+    }
     try {
+      const { error } = await supabase
+        .from('buildings')
+        .update({ name })
+        .eq('id', id);
+      if (error) throw error;
+      setBuildings(buildings.map(b => (b.id === id ? { ...b, name } : b)));
+      toast({ title: 'Succès', description: 'Nom du bâtiment mis à jour.' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setEditingBuildingId('');
+      setEditingBuildingName('');
+    }
+  };
+
+  const cancelEditBuilding = () => {
+    setEditingBuildingId('');
+    setEditingBuildingName('');
+  };
+
+  const deleteService = async (id: string) => {
+    try {
+      const { count, error: cntErr } = await supabase
+        .from('equipments')
+        .select('id', { count: 'exact', head: true })
+        .eq('service_id', id);
+      if (cntErr) throw cntErr;
+
+      const confirmMsg = (count || 0) > 0
+        ? `Attention: ${count} équipement(s) sont encore rattaché(s) à ce service. Voulez-vous vraiment le supprimer ?`
+        : "Êtes-vous sûr de vouloir supprimer ce service ?";
+      if (!window.confirm(confirmMsg)) return;
+
       const { error } = await supabase
         .from('services')
         .delete()
@@ -268,10 +413,53 @@ const FacilitiesManagement = () => {
     }
   };
 
-  const deleteLocation = async (id: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce local ?")) return;
+  const startEditService = (id: string, currentName: string) => {
+    setEditingServiceId(id);
+    setEditingServiceName(currentName);
+  };
 
+  const saveEditService = async () => {
+    const id = editingServiceId;
+    const name = editingServiceName.trim();
+    if (!id || !name) {
+      setEditingServiceId('');
+      setEditingServiceName('');
+      return;
+    }
     try {
+      const { error } = await supabase
+        .from('services')
+        .update({ name })
+        .eq('id', id);
+      if (error) throw error;
+      setServices(services.map(s => (s.id === id ? { ...s, name } : s)));
+      toast({ title: 'Succès', description: 'Nom du service mis à jour.' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setEditingServiceId('');
+      setEditingServiceName('');
+    }
+  };
+
+  const cancelEditService = () => {
+    setEditingServiceId('');
+    setEditingServiceName('');
+  };
+
+  const deleteLocation = async (id: string) => {
+    try {
+      const { count, error: cntErr } = await supabase
+        .from('equipments')
+        .select('id', { count: 'exact', head: true })
+        .eq('location_id', id);
+      if (cntErr) throw cntErr;
+
+      const confirmMsg = (count || 0) > 0
+        ? `Attention: ${count} équipement(s) sont encore rattaché(s) à ce local. Voulez-vous vraiment le supprimer ?`
+        : "Êtes-vous sûr de vouloir supprimer ce local ?";
+      if (!window.confirm(confirmMsg)) return;
+
       const { error } = await supabase
         .from('locations')
         .delete()
@@ -293,6 +481,40 @@ const FacilitiesManagement = () => {
     }
   };
 
+  const startEditLocation = (id: string, currentName: string) => {
+    setEditingLocationId(id);
+    setEditingLocationName(currentName);
+  };
+
+  const saveEditLocation = async () => {
+    const id = editingLocationId;
+    const name = editingLocationName.trim();
+    if (!id || !name) {
+      setEditingLocationId('');
+      setEditingLocationName('');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('locations')
+        .update({ name })
+        .eq('id', id);
+      if (error) throw error;
+      setLocations(locations.map(l => (l.id === id ? { ...l, name } : l)));
+      toast({ title: 'Succès', description: 'Nom du local mis à jour.' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setEditingLocationId('');
+      setEditingLocationName('');
+    }
+  };
+
+  const cancelEditLocation = () => {
+    setEditingLocationId('');
+    setEditingLocationName('');
+  };
+
   const getBuildingName = (buildingId: string | null) => {
     if (!buildingId) return 'Aucun bâtiment';
     const building = buildings.find(b => b.id === buildingId);
@@ -304,6 +526,15 @@ const FacilitiesManagement = () => {
     const service = services.find(s => s.id === serviceId);
     return service ? service.name : 'Service inconnu';
   };
+
+  const getBuildingNameByServiceId = (serviceId: string | null) => {
+    if (!serviceId) return 'Aucun bâtiment';
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return 'Bâtiment inconnu';
+    return getBuildingName(service.building_id ?? null);
+  };
+
+  
 
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n');
@@ -326,6 +557,271 @@ const FacilitiesManagement = () => {
       result.push(current.trim());
       return result;
     }).filter(line => line.some(cell => cell.length > 0));
+  };
+
+  // Import combiné depuis une seule feuille Excel (colonnes: Bâtiment | Service | Local)
+  const handleCombinedExcelImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      setProgressPercent(0);
+      setProgressMessage("Préparation de l'import...");
+      toast({ title: 'Import combiné', description: 'Démarrage de l\'import...', });
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      // Utilise la 1ère feuille. Attend colonnes: [Bâtiment, Service, Local]
+      const firstSheet = workbook.SheetNames[0];
+      const ws = workbook.Sheets[firstSheet];
+      const aoa: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const rows: string[][] = (aoa || []).map((r: any[]) => (r || []).map((c: any) => (c != null ? String(c) : '')));
+      if (rows.length <= 1) {
+        toast({ title: 'Erreur', description: 'La feuille est vide ou ne contient pas d’en-tête.', variant: 'destructive' });
+        return;
+      }
+
+      // Indices colonnes tolérants (FR/EN)
+      const headers = rows[0].map(h => String(h || '').trim().toLowerCase());
+      const idxBuilding = headers.findIndex(h => ['bâtiment','batiment','building'].includes(h));
+      const idxService = headers.findIndex(h => ['service'].includes(h));
+      const idxLocation = headers.findIndex(h => ['local','location','locaux','locations'].includes(h));
+
+      if (idxBuilding === -1 && idxService === -1 && idxLocation === -1) {
+        toast({ title: 'Erreur', description: 'En-têtes attendus: Bâtiment | Service | Local.', variant: 'destructive' });
+        return;
+      }
+
+      const dataRows = rows.slice(1);
+
+      // 1) Bâtiments distincts
+      const buildingNames = new Set<string>();
+      for (const row of dataRows) {
+        const name = (row[idxBuilding] || '').trim();
+        if (name) buildingNames.add(name);
+      }
+      let currentBuildings: BuildingType[] = buildings;
+      if (buildingNames.size > 0) {
+        toast({ title: 'Étape 1/3', description: 'Import des bâtiments...', });
+        setProgressMessage('Import des bâtiments...');
+        const buildingsToInsert = Array.from(buildingNames).map(name => ({ name }));
+        await performImport('buildings', buildingsToInsert, true);
+        // Récupérer immédiatement la liste depuis la base pour éviter la latence de setState
+        const { data: bNow, error: bErr } = await supabase.from('buildings').select('*');
+        if (bErr) throw bErr;
+        currentBuildings = bNow || [];
+        toast({ title: 'Étape 1/3', description: `${currentBuildings.length} bâtiment(s) prêt(s)`, });
+        setProgressPercent(33);
+        setProgressMessage(`${currentBuildings.length} bâtiment(s) prêt(s)`);
+      }
+
+      // 2) Services (avec association par nom de bâtiment)
+      const servicesToInsert: { name: string; building_id: string | null }[] = [];
+      for (const row of dataRows) {
+        const sName = (row[idxService] || '').trim();
+        if (!sName) continue;
+        const bName = (row[idxBuilding] || '').trim();
+        let building_id: string | null = null;
+        if (bName) {
+          const b = currentBuildings.find(x => (x.name || '').toLowerCase() === bName.toLowerCase());
+          building_id = b?.id || null;
+        }
+        // éviter doublons exacts dans le lot
+        if (!servicesToInsert.some(s => s.name.toLowerCase() === sName.toLowerCase() && s.building_id === building_id)) {
+          servicesToInsert.push({ name: sName, building_id });
+        }
+      }
+      let currentServices: Service[] = services;
+      if (servicesToInsert.length > 0) {
+        toast({ title: 'Étape 2/3', description: `Création/liaison de ${servicesToInsert.length} service(s)...`, });
+        setProgressMessage(`Création/liaison de ${servicesToInsert.length} service(s)...`);
+        // Upsert par nom: créer/attacher sans déplacer entre bâtiments
+        for (let i = 0; i < servicesToInsert.length; i++) {
+          const svc = servicesToInsert[i];
+          await ensureServiceWithBuilding(svc.name, svc.building_id || null);
+          if ((i + 1) % 5 === 0 || i === servicesToInsert.length - 1) {
+            setProgressPercent(33 + Math.floor(((i + 1) / servicesToInsert.length) * 33));
+          }
+        }
+        // Récupérer immédiatement la liste depuis la base
+        const { data: sNow, error: sErr } = await supabase.from('services').select('*');
+        if (sErr) throw sErr;
+        currentServices = sNow || [];
+        toast({ title: 'Étape 2/3', description: `${currentServices.length} service(s) prêt(s)`, });
+        setProgressMessage(`${currentServices.length} service(s) prêt(s)`);
+      }
+
+      // 3) Locaux (avec association par nom de service ET par bâtiment pour lever les ambiguïtés)
+      const locationsToInsert: { name: string; service_id: string | null }[] = [];
+      for (const row of dataRows) {
+        const lName = (row[idxLocation] || '').trim();
+        if (!lName) continue;
+        const sName = (row[idxService] || '').trim();
+        const bName = (row[idxBuilding] || '').trim();
+        let service_id: string | null = null;
+        if (sName) {
+          // Si un bâtiment est précisé, on cherche le service correspondant à ce bâtiment
+          let targetBuildingId: string | null = null;
+          if (bName) {
+            const b = currentBuildings.find(x => (x.name || '').toLowerCase() === bName.toLowerCase());
+            targetBuildingId = b?.id || null;
+          }
+          const candidateServices = currentServices.filter(x => (x.name || '').toLowerCase() === sName.toLowerCase());
+          const matchedByBuilding = candidateServices.find(x => (x.building_id || null) === (targetBuildingId || null));
+          const chosenService = matchedByBuilding || candidateServices[0];
+          service_id = chosenService?.id || null;
+        }
+        if (!locationsToInsert.some(l => l.name.toLowerCase() === lName.toLowerCase() && l.service_id === service_id)) {
+          locationsToInsert.push({ name: lName, service_id });
+        }
+      }
+      if (locationsToInsert.length > 0) {
+        toast({ title: 'Étape 3/3', description: `Création/liaison de ${locationsToInsert.length} local(aux)...`, });
+        setProgressMessage(`Création/liaison de ${locationsToInsert.length} local(aux)...`);
+        // Upsert par nom: créer/attacher sans déplacer entre services
+        for (let i = 0; i < locationsToInsert.length; i++) {
+          const loc = locationsToInsert[i];
+          await ensureLocationWithService(loc.name, loc.service_id || null);
+          if ((i + 1) % 10 === 0 || i === locationsToInsert.length - 1) {
+            setProgressPercent(66 + Math.floor(((i + 1) / locationsToInsert.length) * 34));
+          }
+        }
+      }
+
+      // Rafraîchir l'ensemble des données à la fin pour afficher les bonnes informations
+      await fetchData();
+      setProgressPercent(100);
+      setProgressMessage('Terminé');
+      toast({ title: 'Succès', description: 'Import combiné terminé. Données rafraîchies.' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+      if (combinedFileRef.current) combinedFileRef.current.value = '';
+    }
+  };
+
+  const downloadCombinedTemplateExcel = async () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['Bâtiment', 'Service', 'Local'],
+        ['Bâtiment A', 'Service A', 'Local A'],
+        ['Bâtiment B', 'Service B', 'Local B'],
+      ]);
+      ws['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 25 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'Installations');
+
+      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'template_installations_combine.xlsx');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Erreur lors de la génération du modèle combiné:', error);
+      toast({ title: 'Erreur', description: 'Impossible de générer le modèle combiné', variant: 'destructive' });
+    }
+  };
+  
+  // Garantit qu'un service existe pour (name, building_id) sans déplacer un service existant d'un autre bâtiment
+  const ensureServiceWithBuilding = async (name: string, building_id: string | null) => {
+    const normalized = name.trim();
+    if (!normalized) return null;
+
+    // 1) Chercher un service correspondant EXACTEMENT au couple (name, building_id)
+    const sameParentQuery = supabase
+      .from('services')
+      .select('*')
+      .ilike('name', normalized);
+    const { data: sameParent, error: sameParentErr } = await (
+      building_id == null
+        ? sameParentQuery.is('building_id', null)
+        : sameParentQuery.eq('building_id', building_id)
+    );
+    if (sameParentErr) throw sameParentErr;
+    const exact = (sameParent || []).find(s => (s.name || '').trim().toLowerCase() === normalized.toLowerCase());
+    if (exact) return exact;
+
+    // 2) Chercher un service du même nom mais sans parent défini (building_id null) pour l'attacher
+    const { data: noParent, error: noParentErr } = await supabase
+      .from('services')
+      .select('*')
+      .ilike('name', normalized)
+      .is('building_id', null);
+    if (noParentErr) throw noParentErr;
+    const dangling = (noParent || []).find(s => (s.name || '').trim().toLowerCase() === normalized.toLowerCase());
+    if (dangling) {
+      const { data: updated, error: updErr } = await supabase
+        .from('services')
+        .update({ building_id })
+        .eq('id', dangling.id)
+        .select()
+        .single();
+      if (updErr) throw updErr;
+      return updated;
+    }
+
+    // 3) Sinon, créer un nouveau service pour ce bâtiment
+    const { data: inserted, error: insErr } = await supabase
+      .from('services')
+      .insert([{ name: normalized, building_id }])
+      .select()
+      .single();
+    if (insErr) throw insErr;
+    return inserted;
+  };
+
+  // Garantit qu'un local existe pour (name, service_id) sans déplacer un local d'un autre service
+  const ensureLocationWithService = async (name: string, service_id: string | null) => {
+    const normalized = name.trim();
+    if (!normalized) return null;
+
+    // 1) Chercher un local correspondant EXACTEMENT au couple (name, service_id)
+    const sameLocParentQuery = supabase
+      .from('locations')
+      .select('*')
+      .ilike('name', normalized);
+    const { data: sameParent, error: sameParentErr } = await (
+      service_id == null
+        ? sameLocParentQuery.is('service_id', null)
+        : sameLocParentQuery.eq('service_id', service_id)
+    );
+    if (sameParentErr) throw sameParentErr;
+    const exact = (sameParent || []).find(l => (l.name || '').trim().toLowerCase() === normalized.toLowerCase());
+    if (exact) return exact;
+
+    // 2) Chercher un local du même nom mais sans service défini (service_id null) pour l'attacher
+    const { data: noParent, error: noParentErr } = await supabase
+      .from('locations')
+      .select('*')
+      .ilike('name', normalized)
+      .is('service_id', null);
+    if (noParentErr) throw noParentErr;
+    const dangling = (noParent || []).find(l => (l.name || '').trim().toLowerCase() === normalized.toLowerCase());
+    if (dangling) {
+      const { data: updated, error: updErr } = await supabase
+        .from('locations')
+        .update({ service_id })
+        .eq('id', dangling.id)
+        .select()
+        .single();
+      if (updErr) throw updErr;
+      return updated;
+    }
+
+    // 3) Sinon, créer un nouveau local pour ce service
+    const { data: inserted, error: insErr } = await supabase
+      .from('locations')
+      .insert([{ name: normalized, service_id }])
+      .select()
+      .single();
+    if (insErr) throw insErr;
+    return inserted;
   };
 
   const checkForDuplicates = (type: 'buildings' | 'services' | 'locations', newItems: any[]) => {
@@ -756,9 +1252,7 @@ const FacilitiesManagement = () => {
     setDuplicateDialog(null);
   };
 
-  if (loading) {
-    return <div>Chargement...</div>;
-  }
+  // Affichage en overlay léger pendant les opérations longues
 
   return (
     <>
@@ -770,6 +1264,41 @@ const FacilitiesManagement = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {loading && (
+            <div className="mb-4 flex items-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <div className="flex-1">
+                <div className="text-sm text-muted-foreground mb-1">{progressMessage || 'Traitement en cours...'}</div>
+                <Progress value={progressPercent} />
+              </div>
+              <div className="text-xs w-10 text-right tabular-nums">{progressPercent}%</div>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2 mb-4 w-full">
+            <Button
+              variant="outline"
+              onClick={() => combinedFileRef.current?.click()}
+              className="flex items-center gap-2 w-full sm:w-auto"
+            >
+              <Upload className="h-4 w-4" />
+              Importer Excel combiné (une feuille: Bâtiment | Service | Local)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={downloadCombinedTemplateExcel}
+              className="flex items-center gap-2 w-full sm:w-auto"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Modèle Excel combiné
+            </Button>
+            <input
+              ref={combinedFileRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleCombinedExcelImport}
+              className="hidden"
+            />
+          </div>
           <Tabs defaultValue="buildings" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="buildings">Bâtiments</TabsTrigger>
@@ -833,19 +1362,34 @@ const FacilitiesManagement = () => {
               </div>
 
               <div className="space-y-2">
-                {buildings.map((building) => (
+                {buildings
+                  .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                  .map((building) => (
                   <div key={building.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-2">
                       <Building className="h-4 w-4" />
-                      <span>{building.name}</span>
+                      {editingBuildingId === building.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input value={editingBuildingName} onChange={(e) => setEditingBuildingName(e.target.value)} />
+                          <Button size="sm" onClick={saveEditBuilding}>Enregistrer</Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEditBuilding}>Annuler</Button>
+                        </div>
+                      ) : (
+                        <span>{building.name}</span>
+                      )}
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteBuilding(building.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {editingBuildingId !== building.id && (
+                        <Button variant="outline" size="sm" onClick={() => startEditBuilding(building.id, building.name)}>Modifier</Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteBuilding(building.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -874,7 +1418,9 @@ const FacilitiesManagement = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Aucun bâtiment</SelectItem>
-                        {buildings.map((building) => (
+                        {buildings
+                          .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                          .map((building) => (
                           <SelectItem key={building.id} value={building.id}>
                             {building.name}
                           </SelectItem>
@@ -926,22 +1472,37 @@ const FacilitiesManagement = () => {
               </div>
 
               <div className="space-y-2">
-                {services.map((service) => (
+                {services
+                  .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                  .map((service) => (
                   <div key={service.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       <div>
-                        <span className="font-medium">{service.name}</span>
+                        {editingServiceId === service.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input value={editingServiceName} onChange={(e) => setEditingServiceName(e.target.value)} />
+                            <Button size="sm" onClick={saveEditService}>Enregistrer</Button>
+                            <Button size="sm" variant="ghost" onClick={cancelEditService}>Annuler</Button>
+                          </div>
+                        ) : (
+                          <span className="font-medium">{service.name}</span>
+                        )}
                         <p className="text-sm text-gray-500">{getBuildingName(service.building_id)}</p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteService(service.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {editingServiceId !== service.id && (
+                        <Button variant="outline" size="sm" onClick={() => startEditService(service.id, service.name)}>Modifier</Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteService(service.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -970,7 +1531,9 @@ const FacilitiesManagement = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Aucun service</SelectItem>
-                        {services.map((service) => (
+                        {services
+                          .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                          .map((service) => (
                           <SelectItem key={service.id} value={service.id}>
                             {service.name}
                           </SelectItem>
@@ -1022,22 +1585,38 @@ const FacilitiesManagement = () => {
               </div>
 
               <div className="space-y-2">
-                {locations.map((location) => (
+                {locations
+                  .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                  .map((location) => (
                   <div key={location.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
                       <div>
-                        <span className="font-medium">{location.name}</span>
+                        {editingLocationId === location.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input value={editingLocationName} onChange={(e) => setEditingLocationName(e.target.value)} />
+                            <Button size="sm" onClick={saveEditLocation}>Enregistrer</Button>
+                            <Button size="sm" variant="ghost" onClick={cancelEditLocation}>Annuler</Button>
+                          </div>
+                        ) : (
+                          <span className="font-medium">{location.name}</span>
+                        )}
                         <p className="text-sm text-gray-500">{getServiceName(location.service_id)}</p>
+                        <p className="text-sm text-gray-500">{getBuildingNameByServiceId(location.service_id)}</p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteLocation(location.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {editingLocationId !== location.id && (
+                        <Button variant="outline" size="sm" onClick={() => startEditLocation(location.id, location.name)}>Modifier</Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteLocation(location.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1045,6 +1624,8 @@ const FacilitiesManagement = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+    
 
       {/* Duplicate confirmation dialog */}
       <AlertDialog open={!!duplicateDialog} onOpenChange={() => setDuplicateDialog(null)}>
@@ -1080,6 +1661,61 @@ const FacilitiesManagement = () => {
               onClick={() => handleDuplicateDialogAction('import-all')}
             >
               Importer quand même
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Zone de danger - action pour ouvrir la suppression en masse */}
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              Zone de danger
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-red-800">
+                Supprime tous les <b>bâtiments</b>, <b>services</b> et <b>locaux</b>.
+                Les équipements ne seront pas supprimés, mais leurs liens d’emplacement seront remis à zéro.
+              </div>
+              <Button
+                onClick={() => setResetDialogOpen(true)}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Supprimer toutes les installations
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Danger zone: bulk delete all facilities */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Supprimer toutes les installations
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action va supprimer définitivement tous les <b>bâtiments</b>, <b>services</b> et <b>locaux</b>.
+              Les équipements resteront, mais leurs liens d’emplacement seront réinitialisés.
+              Cette opération est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel disabled={resetLoading}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={bulkDeleteFacilities}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={resetLoading}
+            >
+              {resetLoading ? 'Suppression…' : 'Supprimer tout'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

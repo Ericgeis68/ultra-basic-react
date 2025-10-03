@@ -5,13 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { useUserNotifications, UserNotification } from '@/hooks/useUserNotifications';
 import { useMaintenanceNotifications } from '@/hooks/useMaintenanceNotifications';
 import { useCustomAuth } from '@/hooks/useCustomAuth';
-import { Calendar, Clock, Save, User, ChevronDown, Plus, Shield, ShieldOff } from 'lucide-react';
+import { Calendar, Save, User, ChevronDown, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { MultiDatePicker } from '@/components/ui/multi-date-picker';
+import { cn } from '@/lib/utils';
 
 interface NotificationFormModalProps {
   open: boolean;
@@ -24,9 +27,7 @@ interface FormData {
   description: string;
   category: 'general' | 'meeting' | 'task' | 'reminder' | 'personal';
   scheduled_date: string;
-  reminder_time: number;
   recipient_ids: string[];
-  persistent: boolean;
 }
 
 interface UserProfile {
@@ -43,6 +44,8 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [showOtherUsers, setShowOtherUsers] = useState(false);
+  const [multiSchedule, setMultiSchedule] = useState(false);
+  const [multiDates, setMultiDates] = useState<Date[]>([]);
   
   const {
     register,
@@ -56,10 +59,17 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
       title: notification?.title || '',
       description: notification?.description || '',
       category: notification?.category || 'general',
-      scheduled_date: notification?.scheduled_date ? new Date(notification.scheduled_date).toISOString().slice(0, 16) : '',
-      reminder_time: notification?.reminder_time || 15,
+      scheduled_date: notification?.scheduled_date ? (() => {
+        const d = new Date(notification.scheduled_date);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+      })() : '',
       recipient_ids: notification?.user_id ? [notification.user_id] : [],
-      persistent: notification?.persistent ?? true
+      
     }
   });
 
@@ -97,25 +107,85 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
     }
   }, [open, notification]);
 
+  // Avoid UTC shift when editing date-time locally
+  const setLocalScheduled = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    setValue('scheduled_date', `${yyyy}-${mm}-${dd}T${hh}:${mi}`);
+  };
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const onSubmit = async (data: FormData) => {
     try {
-      const notificationData = {
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        scheduled_date: new Date(data.scheduled_date).toISOString(),
-        reminder_time: data.reminder_time,
-        recipients: selectedRecipients,
-        persistent: data.persistent
-      };
-
-      if (notification) {
-        await updateNotification(notification.id, notificationData);
+      if (multiSchedule && multiDates.length > 0) {
+        const isoDates = multiDates.map(d => new Date(d).toISOString());
+        if (notification) {
+          const [first, ...rest] = isoDates;
+          await updateNotification(notification.id, {
+            title: data.title,
+            description: data.description,
+            category: data.category,
+            scheduled_date: first,
+            recipients: selectedRecipients,
+          });
+          for (const dt of rest) {
+            await createNotification({
+              title: data.title,
+              description: data.description,
+              category: data.category,
+              scheduled_date: dt,
+              recipients: selectedRecipients,
+            });
+          }
+        } else {
+          for (const dt of isoDates) {
+            await createNotification({
+              title: data.title,
+              description: data.description,
+              category: data.category,
+              scheduled_date: dt,
+              recipients: selectedRecipients,
+            });
+          }
+        }
       } else {
-        // Créer la notification dans la base de données
-        await createNotification(notificationData);
+        // Construire la date strictement en local pour éviter tout glissement de fuseau
+        const [datePart, timePart] = (data.scheduled_date || '').split('T');
+        const [y, m, d] = (datePart || '').split('-').map(v => parseInt(v, 10));
+        const [hh, mm] = (timePart || '00:00').split(':').map(v => parseInt(v, 10));
+        const localDateObj = new Date(
+          Number.isFinite(y) ? y : new Date().getFullYear(),
+          (Number.isFinite(m) ? m : 1) - 1,
+          Number.isFinite(d) ? d : new Date().getDate(),
+          Number.isFinite(hh) ? hh : 0,
+          Number.isFinite(mm) ? mm : 0,
+          0,
+          0
+        );
+        const localIso = localDateObj.toISOString();
+        await (notification
+          ? updateNotification(notification.id, {
+              title: data.title,
+              description: data.description,
+              category: data.category,
+              scheduled_date: localIso,
+              recipients: selectedRecipients,
+            })
+          : createNotification({
+              title: data.title,
+              description: data.description,
+              category: data.category,
+              scheduled_date: localIso,
+              recipients: selectedRecipients,
+            }));
       }
       
+      // Recharger les données et informer le reste de l'app
+      try { window.dispatchEvent(new Event('notifications:updated')); } catch {}
       reset();
       onClose();
     } catch (error) {
@@ -140,7 +210,7 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -148,7 +218,8 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="flex-1 overflow-y-auto pr-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Titre */}
           <div className="space-y-2">
             <Label htmlFor="title">Titre *</Label>
@@ -288,67 +359,116 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
             )}
           </div>
 
-          {/* Date programmée */}
+          {/* Date programmée / Multi-date */}
           <div className="space-y-2">
-            <Label htmlFor="scheduled_date">Date et heure programmée *</Label>
-            <Input
-              id="scheduled_date"
-              type="datetime-local"
-              {...register('scheduled_date', { required: 'La date est requise' })}
-            />
-            {errors.scheduled_date && (
+            <div className="flex items-center justify-between">
+              <Label>Date(s) et heure(s) programmée(s) *</Label>
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Multi-date</span>
+                <input type="checkbox" className="h-4 w-4" checked={multiSchedule} onChange={(e) => setMultiSchedule(e.target.checked)} />
+              </div>
+            </div>
+            {!multiSchedule ? (
+              <div className="grid gap-2">
+                <div className="block sm:hidden">
+                  <Input
+                    id="scheduled_date"
+                    type="datetime-local"
+                    min={(() => { const now = new Date(); const off = now.getTimezoneOffset(); const local = new Date(now.getTime() - off*60000); return local.toISOString().slice(0,16); })()}
+                    {...register('scheduled_date', { required: 'La date est requise' })}
+                  />
+                </div>
+                <div className="hidden sm:block">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        <span>
+                          {watch('scheduled_date')
+                            ? new Date(watch('scheduled_date')).toLocaleString()
+                            : 'Choisir une date et une heure'}
+                        </span>
+                        <Calendar className="h-4 w-4 opacity-70" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[320px] sm:w-[360px] p-3" align="start">
+                      <div className="space-y-3">
+                        <CalendarComponent
+                          mode="single"
+                          selected={watch('scheduled_date') ? new Date(watch('scheduled_date')) : undefined}
+                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                          onSelect={(day) => {
+                            const current = watch('scheduled_date') ? new Date(watch('scheduled_date')) : new Date();
+                            if (day) {
+                              const merged = new Date(day);
+                              merged.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                              setLocalScheduled(merged);
+                            }
+                          }}
+                          initialFocus
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">Heures</Label>
+                            <Select
+                              value={(watch('scheduled_date') ? new Date(watch('scheduled_date')).getHours() : 9).toString()}
+                              onValueChange={(val) => {
+                                const date = watch('scheduled_date') ? new Date(watch('scheduled_date')) : new Date();
+                                date.setHours(parseInt(val), date.getMinutes(), 0, 0);
+                                setLocalScheduled(date);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-56">
+                                {Array.from({ length: 24 }).map((_, h) => (
+                                  <SelectItem key={h} value={h.toString()}>{h.toString().padStart(2, '0')} h</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Minutes</Label>
+                            <Select
+                              value={(watch('scheduled_date') ? new Date(watch('scheduled_date')).getMinutes() : 0).toString()}
+                              onValueChange={(val) => {
+                                const date = watch('scheduled_date') ? new Date(watch('scheduled_date')) : new Date();
+                                date.setMinutes(parseInt(val), 0, 0);
+                                setLocalScheduled(date);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-56">
+                                {[0, 5, 10, 15, 20, 30, 40, 45, 50, 55].map((m) => (
+                                  <SelectItem key={m} value={m.toString()}>{m.toString().padStart(2, '0')} min</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <MultiDatePicker selected={multiDates} onSelect={(dates) => setMultiDates(dates || [])} />
+                {multiDates.length === 0 && (
+                  <p className="text-sm text-destructive mt-2">Au moins une date est requise</p>
+                )}
+              </div>
+            )}
+            {!multiSchedule && errors.scheduled_date && (
               <p className="text-sm text-destructive">{errors.scheduled_date.message}</p>
             )}
           </div>
 
-          {/* Rappel */}
-          <div className="space-y-2">
-            <Label htmlFor="reminder_time">
-              <Clock className="h-4 w-4 inline mr-1" />
-              Rappel avant (minutes)
-            </Label>
-            <Select 
-              value={watch('reminder_time')?.toString() || '15'} 
-              onValueChange={(value) => setValue('reminder_time', parseInt(value))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 minutes</SelectItem>
-                <SelectItem value="15">15 minutes</SelectItem>
-                <SelectItem value="30">30 minutes</SelectItem>
-                <SelectItem value="60">1 heure</SelectItem>
-                <SelectItem value="120">2 heures</SelectItem>
-                <SelectItem value="1440">1 jour</SelectItem>
-                <SelectItem value="10080">1 semaine</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Options avancées supprimées: aucun rappel avant, planification stricte */}
 
-          {/* Persistance */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                {watch('persistent') ? (
-                  <Shield className="h-4 w-4 text-green-600" />
-                ) : (
-                  <ShieldOff className="h-4 w-4 text-orange-600" />
-                )}
-                Notification persistante
-              </Label>
-              <Switch
-                checked={watch('persistent')}
-                onCheckedChange={(checked) => setValue('persistent', checked)}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {watch('persistent') 
-                ? "✓ La notification restera visible jusqu'à suppression manuelle" 
-                : "⚠️ La notification disparaîtra automatiquement après quelques secondes"
-              }
-            </p>
-          </div>
+          {/* Option de persistance supprimée */}
 
           {/* Boutons */}
           <div className="flex justify-end gap-2 pt-4">
@@ -360,7 +480,8 @@ export function NotificationFormModal({ open, onClose, notification }: Notificat
               {isSubmitting ? 'Sauvegarde...' : 'Sauvegarder'}
             </Button>
           </div>
-        </form>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

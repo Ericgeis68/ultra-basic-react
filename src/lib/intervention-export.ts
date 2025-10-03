@@ -17,6 +17,16 @@ interface ExportData {
 export const exportInterventionsToCSV = (interventions: InterventionUI[], data: ExportData) => {
   const { printOptions, equipments } = data;
   
+  const formatDateDMY = (value?: string | Date | null) => {
+    if (!value) return '';
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+  
   // Helper functions
   const getEquipmentName = (equipmentId: string) => {
     const equipment = equipments.find(eq => eq.id === equipmentId);
@@ -108,10 +118,10 @@ export const exportInterventionsToCSV = (interventions: InterventionUI[], data: 
           value = getEquipmentName(intervention.equipmentId);
           break;
         case 'scheduled_date':
-          value = intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : '';
+          value = formatDateDMY(intervention.scheduled_date);
           break;
         case 'completed_date':
-          value = intervention.completedDate || '';
+          value = formatDateDMY(intervention.completedDate || '');
           break;
         case 'technicians':
           value = intervention.technicians.join(', ');

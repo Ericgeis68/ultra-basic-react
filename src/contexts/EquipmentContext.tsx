@@ -45,28 +45,40 @@ export const EquipmentProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     loading: loadingGroups,
     error: errorGroups,
     refetch: refetchGroups
-  } = useCollection<EquipmentGroup>({ tableName: 'equipment_groups' });
+  } = useCollection<EquipmentGroup>({ 
+    tableName: 'equipment_groups',
+    orderBy: { column: 'name', ascending: true }
+  });
 
   const {
     data: buildings,
     loading: loadingBuildings,
     error: errorBuildings,
     refetch: refetchBuildings
-  } = useCollection<BuildingType>({ tableName: 'buildings' });
+  } = useCollection<BuildingType>({ 
+    tableName: 'buildings',
+    orderBy: { column: 'name', ascending: true }
+  });
 
   const {
     data: services,
     loading: loadingServices,
     error: errorServices,
     refetch: refetchServices
-  } = useCollection<Service>({ tableName: 'services' });
+  } = useCollection<Service>({ 
+    tableName: 'services',
+    orderBy: { column: 'name', ascending: true }
+  });
 
   const {
     data: locations,
     loading: loadingLocations,
     error: errorLocations,
     refetch: refetchLocations
-  } = useCollection<Location>({ tableName: 'locations' });
+  } = useCollection<Location>({ 
+    tableName: 'locations',
+    orderBy: { column: 'name', ascending: true }
+  });
 
   const contextValue = {
     equipments,

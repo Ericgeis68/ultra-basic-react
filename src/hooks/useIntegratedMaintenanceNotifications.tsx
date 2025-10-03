@@ -7,7 +7,7 @@ export function useIntegratedMaintenanceNotifications() {
     scheduleMaintenanceReminders, 
     showInterventionNotification, 
     showUrgentAlert,
-    isEnabled 
+    isEnabled
   } = useMaintenanceNotifications();
   
   const { maintenances } = useMaintenance();
@@ -112,11 +112,12 @@ export function useIntegratedMaintenanceNotifications() {
     if (!isEnabled) return;
 
     try {
-      await showInterventionNotification(
-        interventionTitle,
-        equipmentName,
-        priority === 'urgent' || priority === 'high'
-      );
+      // Revenir à la notification d'intervention via hook maintenance
+      await showInterventionNotification({
+        title: interventionTitle,
+        equipment_name: equipmentName,
+        priority
+      } as any);
     } catch (error) {
       console.error('Erreur notification nouvelle intervention:', error);
     }
@@ -126,15 +127,18 @@ export function useIntegratedMaintenanceNotifications() {
   const checkOverdueMaintenances = useCallback(async () => {
     if (!isEnabled || !maintenances.length) return;
 
-    const now = new Date();
+    // Comparer en début de journée locale pour éviter décalages
+    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const toLocalDateOnly = (isoDateOnly: string) => startOfDay(new Date(`${isoDateOnly}T00:00:00`));
+    const now = startOfDay(new Date());
     const overdueMaintenances = maintenances.filter(maintenance => {
-      const dueDate = new Date(maintenance.next_due_date);
+      const dueDate = toLocalDateOnly(maintenance.next_due_date);
       return maintenance.status !== 'completed' && dueDate < now;
     });
 
     for (const maintenance of overdueMaintenances) {
-      const dueDate = new Date(maintenance.next_due_date);
-      const daysPastDue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const dueDate = toLocalDateOnly(maintenance.next_due_date);
+      const daysPastDue = Math.floor((now.getTime() - dueDate.getTime()) / 86400000);
       
       await notifyOverdueMaintenance(
         maintenance.title,

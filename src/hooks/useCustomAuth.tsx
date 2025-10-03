@@ -50,6 +50,31 @@ export const CustomAuthProvider = ({ children }: { children: React.ReactNode }) 
     setLoading(false);
   }, []);
 
+  // Sync with external auth updates (AuthContext or other tabs)
+  useEffect(() => {
+    const syncFromSession = () => {
+      const stored = sessionStorage.getItem('currentUser');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setUser(parsed);
+        } catch {
+          // ignore parse errors
+        }
+      } else {
+        setUser(null);
+      }
+    };
+    window.addEventListener('auth:updated', syncFromSession);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'currentUser') syncFromSession();
+    });
+    return () => {
+      window.removeEventListener('auth:updated', syncFromSession);
+      // storage listener is anonymous above; browsers don't require removal but avoid leak by ignoring here
+    };
+  }, []);
+
   const signIn = async (username: string, password: string) => {
     try {
       const { data, error } = await supabase
@@ -67,6 +92,7 @@ export const CustomAuthProvider = ({ children }: { children: React.ReactNode }) 
 
       setUser(userData);
       sessionStorage.setItem('currentUser', JSON.stringify(userData));
+      try { window.dispatchEvent(new Event('auth:updated')); } catch {}
       
       toast({
         title: "Connexion réussie",
@@ -87,6 +113,7 @@ export const CustomAuthProvider = ({ children }: { children: React.ReactNode }) 
     try {
       setUser(null);
       sessionStorage.removeItem('currentUser');
+      try { window.dispatchEvent(new Event('auth:updated')); } catch {}
       
       toast({
         title: "Déconnexion réussie",
@@ -147,6 +174,7 @@ export const CustomAuthProvider = ({ children }: { children: React.ReactNode }) 
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      try { window.dispatchEvent(new Event('auth:updated')); } catch {}
       
       toast({
         title: "Profil mis à jour",

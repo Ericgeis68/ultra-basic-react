@@ -67,12 +67,11 @@ const EquipmentInfoGroups: React.FC<EquipmentInfoGroupsProps> = ({
   };
 
   const [groupNames, setGroupNames] = useState<string>('');
+  const [effectiveDescription, setEffectiveDescription] = useState<string>('');
 
   useEffect(() => {
     const computeNames = async () => {
-      const groupIds = (equipment.equipment_group_ids && equipment.equipment_group_ids.length > 0)
-        ? equipment.equipment_group_ids
-        : (equipment.associated_group_ids || []);
+      const groupIds = equipment.associated_group_ids || [];
       if (groupIds && groupIds.length > 0) {
         const names = equipmentGroups
           .filter(group => groupIds.includes(group.id))
@@ -89,6 +88,29 @@ const EquipmentInfoGroups: React.FC<EquipmentInfoGroupsProps> = ({
       setGroupNames(names);
     };
     computeNames();
+  }, [equipment, equipmentGroups]);
+
+  // Calculer une description effective: description de l'équipement, sinon description du groupe associé
+  useEffect(() => {
+    const computeDescription = async () => {
+      const equipmentDesc = equipment?.description ? String(equipment.description).trim() : '';
+      if (equipmentDesc) {
+        setEffectiveDescription(equipmentDesc);
+        return;
+      }
+
+      // Sinon, récupérer une description depuis les groupes associés
+      const groupIds = equipment.associated_group_ids && equipment.associated_group_ids.length > 0
+        ? equipment.associated_group_ids
+        : await junctionTableManager.getGroupsForEquipment(equipment.id);
+
+      const firstGroupWithDesc = equipmentGroups
+        .filter(g => groupIds.includes(g.id))
+        .find(g => g.description && String(g.description).trim().length > 0);
+
+      setEffectiveDescription(firstGroupWithDesc ? String(firstGroupWithDesc.description).trim() : '');
+    };
+    computeDescription();
   }, [equipment, equipmentGroups]);
 
   return (
@@ -127,16 +149,12 @@ const EquipmentInfoGroups: React.FC<EquipmentInfoGroupsProps> = ({
           <div>
             <Label>Statut de prêt</Label>
             <p className="text-sm text-muted-foreground">
-              {equipment.loan_status ? (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  En prêt
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Disponible
-                </span>
-              )}
+              {equipment.loan_status ? 'Oui' : 'Non'}
             </p>
+          </div>
+          <div className="md:col-span-2">
+            <Label>Description</Label>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{effectiveDescription || 'Non renseigné'}</p>
           </div>
         </div>
       </div>

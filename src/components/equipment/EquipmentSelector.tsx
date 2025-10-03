@@ -328,7 +328,9 @@ const EquipmentSelector: React.FC<EquipmentSelectorProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous</SelectItem>
-                    {allBuildings.map(building => (
+                    {allBuildings
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                      .map(building => (
                       <SelectItem key={building.id} value={building.id}>{building.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -343,7 +345,9 @@ const EquipmentSelector: React.FC<EquipmentSelectorProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous</SelectItem>
-                    {allServices.map(service => (
+                    {allServices
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                      .map(service => (
                       <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -358,7 +362,9 @@ const EquipmentSelector: React.FC<EquipmentSelectorProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous</SelectItem>
-                    {allLocations.map(location => (
+                    {allLocations
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                      .map(location => (
                       <SelectItem key={location.id} value={location.id}>{location.name}</SelectItem>
                     ))}
                   </SelectContent>

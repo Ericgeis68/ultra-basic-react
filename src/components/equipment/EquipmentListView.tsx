@@ -6,7 +6,13 @@ import { Service } from '@/types/service';
 import { Location } from '@/types/location';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, ArrowUp, ArrowDown } from 'lucide-react'; // Import ArrowUp and ArrowDown
+import { Eye, ArrowUp, ArrowDown, MoreHorizontal, Edit, Trash2, Wrench, FileText, CalendarClock } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import EquipmentHealthBar from './EquipmentHealthBar';
 import { useEquipmentFieldVisibility } from '@/hooks/useEquipmentFieldVisibility';
 import {
@@ -26,6 +32,11 @@ interface EquipmentListViewProps {
   services?: Service[];
   locations?: Location[];
   onEquipmentClick: (equipment: Equipment) => void;
+  onEditEquipment?: (equipment: Equipment) => void;
+  onDeleteEquipment?: (equipment: Equipment) => void;
+  onCreateInterventionFromList?: (equipment: Equipment) => void;
+  onOpenDocumentsFromList?: (equipment: Equipment) => void;
+  onOpenMaintenanceFromList?: (equipment: Equipment) => void;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   onSortChange: (column: string) => void;
@@ -38,6 +49,11 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
   services = [],
   locations = [],
   onEquipmentClick,
+  onEditEquipment,
+  onDeleteEquipment,
+  onCreateInterventionFromList,
+  onOpenDocumentsFromList,
+  onOpenMaintenanceFromList,
   sortColumn,
   sortDirection,
   onSortChange
@@ -138,11 +154,11 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
       case 'uf':
         return equipment.uf || '';
       case 'purchase_date':
-        return equipment.purchase_date || '';
+        return (() => { const v = equipment.purchase_date; if (!v) return ''; const d = new Date(v); if (isNaN(d.getTime())) return v; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })();
       case 'warranty_expiry':
-        return equipment.warranty_expiry || '';
+        return (() => { const v = equipment.warranty_expiry; if (!v) return ''; const d = new Date(v); if (isNaN(d.getTime())) return v; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })();
       case 'date_mise_en_service':
-        return equipment.date_mise_en_service || '';
+        return (() => { const v = equipment.date_mise_en_service; if (!v) return ''; const d = new Date(v); if (isNaN(d.getTime())) return v; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })();
       case 'building':
         return getBuildingName(equipment.building_id);
       case 'service':
@@ -187,20 +203,20 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
           {renderSortableHeader('name', 'Nom')}
           {renderSortableHeader('model', 'Modèle', listFields.model)}
           {renderSortableHeader('manufacturer', 'Fabricant', listFields.manufacturer)}
-          {renderSortableHeader('status', 'Statut')}
+          {renderSortableHeader('status', 'Statut', listFields.status)}
           {renderSortableHeader('health_percentage', 'Santé', listFields.health_percentage)}
           {renderSortableHeader('inventory_number', 'Inventaire', listFields.inventory_number)}
           {renderSortableHeader('serial_number', 'N° Série', listFields.serial_number)}
           {renderSortableHeader('uf', 'UF', listFields.uf)}
           {renderSortableHeader('supplier', 'Fournisseur', listFields.supplier)}
           {renderSortableHeader('purchase_date', "Date d'achat", listFields.purchase_date)}
+          {renderSortableHeader('purchase_price', "Prix d'achat (€)", listFields.purchase_price)}
           {renderSortableHeader('warranty_expiry', 'Garantie', listFields.warranty_expiry)}
           {renderSortableHeader('date_mise_en_service', 'Mise en service', listFields.date_mise_en_service)}
           {renderSortableHeader('building', 'Bâtiment', listFields.building)}
           {renderSortableHeader('service', 'Service', listFields.service)}
           {renderSortableHeader('location', 'Local', listFields.location)}
           {renderSortableHeader('groups', 'Groupes', listFields.groups)}
-          {renderSortableHeader('description', 'Description', listFields.description)}
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -231,19 +247,21 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
                 <TableCell className="font-medium">{equipment.name}</TableCell>
                 {listFields.model && <TableCell>{equipment.model || 'Non spécifié'}</TableCell>}
                 {listFields.manufacturer && <TableCell>{equipment.manufacturer || 'Non spécifié'}</TableCell>}
-                <TableCell>
-                  <Badge 
-                    variant="outline" 
-                    className={getStatusBadgeColor(equipment.status)}
-                  >
-                    {getStatusText(equipment.status)}
-                  </Badge>
-                </TableCell>
+                {listFields.status && (
+                  <TableCell>
+                    <Badge 
+                      variant="outline" 
+                      className={getStatusBadgeColor(equipment.status)}
+                    >
+                      {getStatusText(equipment.status)}
+                    </Badge>
+                  </TableCell>
+                )}
                 {listFields.health_percentage && (
                   <TableCell>
                     {equipment.health_percentage !== undefined && equipment.health_percentage !== null ? (
-                      <div className="w-20">
-                        <EquipmentHealthBar percentage={equipment.health_percentage} showLabel={false} />
+                      <div className="w-24">
+                        <EquipmentHealthBar percentage={equipment.health_percentage} showLabel={true} labelPlacement="inline" compact />
                       </div>
                     ) : (
                       <span className="text-muted-foreground text-sm">N/A</span>
@@ -254,21 +272,56 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
                 {listFields.serial_number && <TableCell>{equipment.serial_number || 'Non spécifié'}</TableCell>}
                 {listFields.uf && <TableCell>{equipment.uf || 'Non spécifié'}</TableCell>}
                 {listFields.supplier && <TableCell>{equipment.supplier || 'Non spécifié'}</TableCell>}
-                {listFields.purchase_date && <TableCell>{equipment.purchase_date || 'Non spécifié'}</TableCell>}
-                {listFields.warranty_expiry && <TableCell>{equipment.warranty_expiry || 'Non spécifié'}</TableCell>}
-                {listFields.date_mise_en_service && <TableCell>{equipment.date_mise_en_service || 'Non spécifié'}</TableCell>}
+                {listFields.purchase_date && <TableCell>{(() => { const v = equipment.purchase_date; if (!v) return 'Non spécifié'; const d = new Date(v); if (isNaN(d.getTime())) return v; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</TableCell>}
+                {listFields.purchase_price && (
+                  <TableCell>{equipment.purchase_price != null ? `${equipment.purchase_price} €` : 'Non spécifié'}</TableCell>
+                )}
+                {listFields.warranty_expiry && <TableCell>{(() => { const v = equipment.warranty_expiry; if (!v) return 'Non spécifié'; const d = new Date(v); if (isNaN(d.getTime())) return v; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</TableCell>}
+                {listFields.date_mise_en_service && <TableCell>{(() => { const v = equipment.date_mise_en_service; if (!v) return 'Non spécifié'; const d = new Date(v); if (isNaN(d.getTime())) return v; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</TableCell>}
                 {listFields.building && <TableCell>{getBuildingName(equipment.building_id)}</TableCell>}
                 {listFields.service && <TableCell>{getServiceName(equipment.service_id)}</TableCell>}
                 {listFields.location && <TableCell>{getLocationName(equipment.location_id)}</TableCell>}
                 {listFields.groups && <TableCell>{getGroupNames(equipment)}</TableCell>}
                 <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={() => onEquipmentClick(equipment)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => onEquipmentClick(equipment)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Voir détails
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => (onCreateInterventionFromList ? onCreateInterventionFromList(equipment) : onEquipmentClick(equipment))}>
+                          <Wrench className="mr-2 h-4 w-4" />
+                          Créer intervention
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => (onOpenDocumentsFromList ? onOpenDocumentsFromList(equipment) : onEquipmentClick(equipment))}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Documents techniques
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => (onOpenMaintenanceFromList ? onOpenMaintenanceFromList(equipment) : onEquipmentClick(equipment))}>
+                          <CalendarClock className="mr-2 h-4 w-4" />
+                          Programmer maintenance
+                        </DropdownMenuItem>
+                        {onEditEquipment && (
+                          <DropdownMenuItem onClick={() => onEditEquipment(equipment)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Modifier
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteEquipment && (
+                          <DropdownMenuItem onClick={() => onDeleteEquipment(equipment)} className="text-red-600 focus:text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             );

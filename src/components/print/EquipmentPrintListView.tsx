@@ -254,12 +254,12 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
               )}
               {visibleColumns.purchaseDate && (
                 <td className="print-td">
-                  {equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString('fr-FR') : 'Non spécifié'}
+                  {equipment.purchase_date ? (() => { const d = new Date(equipment.purchase_date); if (isNaN(d.getTime())) return 'Non spécifié'; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non spécifié'}
                 </td>
               )}
               {visibleColumns.warrantyExpiry && (
                 <td className="print-td">
-                  {equipment.warranty_expiry ? new Date(equipment.warranty_expiry).toLocaleDateString('fr-FR') : 'Non spécifié'}
+                  {equipment.warranty_expiry ? (() => { const d = new Date(equipment.warranty_expiry); if (isNaN(d.getTime())) return 'Non spécifié'; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non spécifié'}
                 </td>
               )}
             </tr>

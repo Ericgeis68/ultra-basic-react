@@ -151,10 +151,6 @@ export function NotificationCard({ notification }: NotificationCardProps) {
                 {format(new Date(notification.scheduled_date), 'dd/MM/yyyy à HH:mm', { locale: fr })}
               </div>
               
-              <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                Rappel: {notification.reminder_time}min avant
-              </div>
             </div>
 
             {!notification.is_completed && (

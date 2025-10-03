@@ -160,7 +160,7 @@ const Profile = () => {
 
             <div className="text-center text-sm space-y-1">
               <p><strong>Rôle:</strong> {user.role === 'admin' ? 'Administrateur' : 'Technicien'}</p>
-              <p><strong>Membre depuis:</strong> {new Date(user.created_at).toLocaleDateString()}</p>
+              <p><strong>Membre depuis:</strong> {(() => { const d = new Date(user.created_at); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}</p>
               <p><strong>Thème:</strong> {user.dark_mode ? '🌙 Mode sombre' : '☀️ Mode clair'}</p>
             </div>
           </CardContent>

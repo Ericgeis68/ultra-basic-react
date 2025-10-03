@@ -342,43 +342,60 @@ const Maintenance = () => {
   const sortedAndFilteredMaintenances = useMemo(() => {
     let currentMaintenances = [...filteredMaintenances];
 
-    if (sortColumn) {
-      currentMaintenances.sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
+    const getAssignmentWeight = (m: MaintenanceTask) => {
+      const techs = (m.assigned_technicians || []) as string[];
+      return currentUser && techs.includes((currentUser as any).id) ? 0 : 1; // 0 = assigné à moi, 1 = non assigné
+    };
 
-        if (sortColumn === 'next_due_date' || sortColumn === 'last_completed_date' || sortColumn === 'created_at' || sortColumn === 'updated_at') {
-          aValue = a[sortColumn] ? new Date(a[sortColumn] as string).getTime() : (sortDirection === 'asc' ? -Infinity : Infinity);
-          bValue = b[sortColumn] ? new Date(b[sortColumn] as string).getTime() : (sortDirection === 'asc' ? -Infinity : Infinity);
-        } else if (sortColumn === 'priority') {
-          const priorityOrder = { 'urgent': 4, 'high': 3, 'medium': 2, 'low': 1 };
-          aValue = priorityOrder[a[sortColumn] as 'low' | 'medium' | 'high' | 'urgent'] || 0;
-          bValue = priorityOrder[b[sortColumn] as 'low' | 'medium' | 'high' | 'urgent'] || 0;
-        } else if (sortColumn === 'status') {
-          const statusOrder = { 'overdue': 4, 'in-progress': 3, 'scheduled': 2, 'completed': 1 };
-          aValue = statusOrder[a[sortColumn] as 'scheduled' | 'in-progress' | 'completed' | 'overdue'] || 0;
-          bValue = statusOrder[b[sortColumn] as 'scheduled' | 'in-progress' | 'completed' | 'overdue'] || 0;
-        }
-        else {
-          aValue = a[sortColumn];
-          bValue = b[sortColumn];
-        }
+    const compareBySortColumn = (a: MaintenanceTask, b: MaintenanceTask) => {
+      if (!sortColumn) return 0;
+      let aValue: any;
+      let bValue: any;
 
-        // Handle null/undefined values for sorting, pushing them to the end
-        if (aValue === null || aValue === undefined) return sortDirection === 'asc' ? 1 : -1;
-        if (bValue === null || bValue === undefined) return sortDirection === 'asc' ? -1 : 1;
+      if (sortColumn === 'next_due_date' || sortColumn === 'last_completed_date' || sortColumn === 'created_at' || sortColumn === 'updated_at') {
+        aValue = a[sortColumn] ? new Date(a[sortColumn] as string).getTime() : (sortDirection === 'asc' ? -Infinity : Infinity);
+        bValue = b[sortColumn] ? new Date(b[sortColumn] as string).getTime() : (sortDirection === 'asc' ? -Infinity : Infinity);
+      } else if (sortColumn === 'priority') {
+        const priorityOrder = { 'urgent': 4, 'high': 3, 'medium': 2, 'low': 1 } as const;
+        aValue = priorityOrder[a[sortColumn] as 'low' | 'medium' | 'high' | 'urgent'] || 0;
+        bValue = priorityOrder[b[sortColumn] as 'low' | 'medium' | 'high' | 'urgent'] || 0;
+      } else if (sortColumn === 'status') {
+        const statusOrder = { 'overdue': 4, 'in-progress': 3, 'scheduled': 2, 'completed': 1 } as const;
+        aValue = statusOrder[a[sortColumn] as 'scheduled' | 'in-progress' | 'completed' | 'overdue'] || 0;
+        bValue = statusOrder[b[sortColumn] as 'scheduled' | 'in-progress' | 'completed' | 'overdue'] || 0;
+      } else {
+        aValue = (a as any)[sortColumn];
+        bValue = (b as any)[sortColumn];
+      }
 
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-        }
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-        }
-        return 0;
-      });
-    }
+      if (aValue === null || aValue === undefined) return sortDirection === 'asc' ? 1 : -1;
+      if (bValue === null || bValue === undefined) return sortDirection === 'asc' ? -1 : 1;
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      return 0;
+    };
+
+    currentMaintenances.sort((a, b) => {
+      const aw = getAssignmentWeight(a);
+      const bw = getAssignmentWeight(b);
+      if (aw !== bw) return aw - bw; // assignés d'abord
+
+      const columnCompare = compareBySortColumn(a, b);
+      if (columnCompare !== 0) return columnCompare;
+
+      // fallback: trier par date d'échéance
+      const aDate = a.next_due_date ? new Date(a.next_due_date).getTime() : Infinity;
+      const bDate = b.next_due_date ? new Date(b.next_due_date).getTime() : Infinity;
+      return aDate - bDate;
+    });
+
     return currentMaintenances;
-  }, [filteredMaintenances, sortColumn, sortDirection]);
+  }, [filteredMaintenances, sortColumn, sortDirection, currentUser]);
 
 
   const handleSortChange = (value: keyof MaintenanceTask) => {

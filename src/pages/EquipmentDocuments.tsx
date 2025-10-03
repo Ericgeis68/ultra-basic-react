@@ -42,7 +42,6 @@ interface DocumentFormData {
   title: string;
   description: string;
   category: string;
-  tags: string;
   equipment_ids: string[];
   group_ids: string[];
   file: File | null;
@@ -63,7 +62,6 @@ const EquipmentDocumentsPage = () => {
     title: '',
     description: '',
     category: '',
-    tags: '',
     equipment_ids: [equipmentId || ''],
     group_ids: [],
     file: null,
@@ -175,9 +173,7 @@ const EquipmentDocumentsPage = () => {
         title: formData.title,
         description: formData.description,
         category: formData.category,
-        tags: formData.tags.split(',').map(tag => tag.trim()),
         equipment_ids: formData.equipment_ids,
-        group_ids: formData.group_ids,
         filetype: formData.file.type,
         filename: formData.file.name
       }, formData.file);
@@ -187,7 +183,6 @@ const EquipmentDocumentsPage = () => {
           title: '',
           description: '',
           category: '',
-          tags: '',
           equipment_ids: [equipmentId || ''],
           group_ids: [],
           file: null,
@@ -385,15 +380,7 @@ const EquipmentDocumentsPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tags (séparés par des virgules)</label>
-              <Input
-                name="tags"
-                value={formData.tags}
-                onChange={handleFormChange}
-                placeholder="tag1, tag2, tag3"
-              />
-            </div>
+            
             <div className="space-y-2">
               <label className="text-sm font-medium">Fichier </label>
               <Input

@@ -39,11 +39,17 @@ interface SelectedPart {
   name: string;
 }
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  username: string;
+  role: string;
+}
+
 export interface InterventionFormData {
   equipment_id?: string | null;
   scheduled_date: string;
-  start_date?: string | null;
-  end_date?: string | null;
+  // Removed from DB usage; kept in technician_history only
   type: string;
   technicians?: string[] | null;
   title?: string | null;
@@ -151,6 +157,11 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
   const isContinuation = !!currentIntervention && currentIntervention.status === 'in-progress';
   const [previousTechnicianHistory, setPreviousTechnicianHistory] = useState<TechnicianHistoryEntry[]>([]);
 
+  // Technicians selection
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>(currentUser ? [currentUser.id] : []);
+  const [showOtherUsers, setShowOtherUsers] = useState(false);
+
   // Fetch all necessary data using useCollection
   const { data: fetchedEquipments, loading: equipmentsLoading } = useCollection<Equipment>({ tableName: 'equipments' });
   const { data: groups, loading: groupsLoading } = useCollection<EquipmentGroup>({ tableName: 'equipment_groups' });
@@ -205,6 +216,10 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
         technician_history: Array.isArray(initialIntervention.technician_history) ? initialIntervention.technician_history : [],
         id: initialIntervention.id
       });
+      // Initialize selected technicians from existing intervention or default
+      setSelectedTechnicians((initialIntervention.technicians && initialIntervention.technicians.length > 0)
+        ? initialIntervention.technicians
+        : (currentUser ? [currentUser.id] : []));
 
       if (initialIntervention.parts && Array.isArray(initialIntervention.parts) && !isContinuation) {
         // When editing, the 'parts' field in the DB is the *global* list of parts used.
@@ -241,6 +256,7 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
         technician_history: [],
         id: undefined, // Ensure id is undefined for new interventions
       });
+      setSelectedTechnicians(currentUser ? [currentUser.id] : []);
       setSelectedParts([]);
       setAvailableParts([]);
       setPreviousTechnicianHistory([]);
@@ -251,6 +267,28 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
   useEffect(() => {
     initializeForm();
   }, [initializeForm]);
+
+  // Load all users when modal opens
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, username, role')
+          .order('full_name');
+        if (!error) setUsers(data || []);
+      } catch (e) {
+        // silent
+      }
+    };
+    if (isOpen) fetchUsers();
+  }, [isOpen]);
+
+  const toggleTechnician = (userId: string) => {
+    setSelectedTechnicians(prev => prev.includes(userId)
+      ? prev.filter(id => id !== userId)
+      : [...prev, userId]);
+  };
 
   // Fetch available parts - memoized to prevent infinite loops
   const fetchPartsForEquipment = useCallback(async () => {
@@ -314,15 +352,15 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
   );
 
   // Update equipment status when form status changes - debounced
+  const enableAutoEquipmentStatusUpdate = false;
   useEffect(() => {
+    if (!enableAutoEquipmentStatusUpdate) return;
     if (!selectedEquipmentId || !formStatus) return;
-    
     const timeoutId = setTimeout(() => {
       updateEquipmentStatusCallback(selectedEquipmentId, formStatus);
-    }, 100); // Debounce to prevent rapid calls
-
+    }, 100);
     return () => clearTimeout(timeoutId);
-  }, [formStatus, selectedEquipmentId, updateEquipmentStatusCallback]);
+  }, [enableAutoEquipmentStatusUpdate, formStatus, selectedEquipmentId, updateEquipmentStatusCallback]);
 
   const getTypeBadgeInfo = (type: string) => {
     return interventionTypes.find(t => t.id === type) || interventionTypes[1];
@@ -556,9 +594,10 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
     // When continuing, we only add the current technician to the history, not necessarily replace the assigned technicians list.
     // For simplicity, let's keep the assigned technicians list as it was, and add the current user to history.
     // If creating a new intervention, the assigned technician is the current user.
-    const assignedTechnicians = currentIntervention?.technicians || (currentUser ? [currentUser.id] : []);
+    // Build assigned technicians from selection, ensure current user present
+    let assignedTechnicians = selectedTechnicians.slice();
     if (currentUser && !assignedTechnicians.includes(currentUser.id)) {
-       assignedTechnicians.push(currentUser.id); // Add current user if not already assigned
+      assignedTechnicians.push(currentUser.id);
     }
 
 
@@ -567,9 +606,30 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
       quantity: p.quantity,
     }));
 
+    // Build display name for history: include all selected technicians (including current user)
+    const techIdsForEntry = (() => {
+      const base = (selectedTechnicians && selectedTechnicians.length > 0)
+        ? selectedTechnicians.slice()
+        : (currentIntervention?.technicians || []);
+      const others = base.filter(id => id && id !== currentUser?.id);
+      const ordered = currentUser?.id ? [currentUser.id, ...others] : others;
+      return Array.from(new Set(ordered));
+    })();
+    const technicianNameDisplay = (() => {
+      const names = techIdsForEntry
+        .map(id => users.find(u => u.id === id)?.full_name)
+        .filter((name): name is string => !!name && name.trim().length > 0);
+      const seen = new Set<string>();
+      const uniqueInOrder: string[] = [];
+      for (const n of names) {
+        if (!seen.has(n)) { seen.add(n); uniqueInOrder.push(n); }
+      }
+      return uniqueInOrder.join(' ; ');
+    })();
+
     const currentTechnicianEntry: TechnicianHistoryEntry = {
       technician_id: currentUser?.id || 'unknown',
-      technician_name: currentUser?.full_name || 'Technicien inconnu',
+      technician_name: technicianNameDisplay || currentUser?.full_name || 'Technicien inconnu',
       actions: values.actions || '',
       parts_used: currentTechnicianParts,
       date_start: currentDate, // Date the current technician started their work (today)
@@ -749,6 +809,8 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
                 <FormMessage />
               </FormItem>
 
+            
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -919,6 +981,61 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
                   </Badge>
                 </div>
               </FormItem>
+
+              {/* Additional technicians selection */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Autres techniciens (optionnel)
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowOtherUsers(!showOtherUsers)}
+                >
+                  {showOtherUsers ? (
+                    <>
+                      <X className="h-4 w-4" />
+                      Masquer les techniciens
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Ajouter des techniciens ({users.filter(u => u.id !== currentUser?.id).length})
+                    </>
+                  )}
+                </Button>
+
+                {showOtherUsers && (
+                  <div className="max-h-48 overflow-y-auto space-y-2 border rounded-md p-2">
+                    {users.filter(u => u.id !== currentUser?.id).map(u => (
+                      <div
+                        key={u.id}
+                        className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+                          selectedTechnicians.includes(u.id) ? 'bg-primary/10 border border-primary' : 'hover:bg-muted'
+                        }`}
+                        onClick={() => toggleTechnician(u.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTechnicians.includes(u.id)}
+                          onChange={() => toggleTechnician(u.id)}
+                          className="h-4 w-4"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{u.full_name}</span>
+                            <span className="text-sm text-muted-foreground">({u.username})</span>
+                            <span className="text-xs bg-muted px-1 rounded">{u.role}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Display previous technician history if in continuation mode or editing */}
               {(isContinuation || (currentIntervention && previousTechnicianHistory.length > 0)) && (
@@ -1099,7 +1216,18 @@ const InterventionFormModal: React.FC<InterventionFormModalProps> = ({
         equipmentName={syncState.equipmentName}
         currentEquipmentStatus={syncState.currentEquipmentStatus}
         interventionStatus={syncState.interventionStatus}
-        onConfirm={updateEquipmentStatus}
+        onConfirm={async (newStatus) => {
+          if (!syncState.equipmentId) return closeSyncDialog();
+          try {
+            if (newStatus === 'operational') {
+              await setEquipmentToOperational(syncState.equipmentId);
+            } else if (newStatus === 'faulty') {
+              await setEquipmentToFaulty(syncState.equipmentId);
+            }
+          } finally {
+            closeSyncDialog();
+          }
+        }}
       />
 
       {/* EquipmentSelector Modal */}

@@ -71,7 +71,11 @@ const MaintenanceCardView: React.FC<MaintenanceCardViewProps> = ({
   onContinueIntervention,
   onNew
 }) => {
-  const maintenanceIds = maintenances.map(m => m.id);
+  const maintenanceIds = React.useMemo(() => {
+    const ids = maintenances.map(m => m.id);
+    // Ensure stable reference and order to avoid unnecessary effect triggers
+    return Array.from(new Set(ids)).sort();
+  }, [maintenances]);
   const { hasIntervention, getIntervention } = useMaintenanceInterventions(maintenanceIds);
 
   if (loading) {

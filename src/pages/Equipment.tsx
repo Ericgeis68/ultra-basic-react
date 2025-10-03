@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, PlusCircle, Search, List, Grid, QrCode, FileDown, ListFilter, ArrowUp, ArrowDown, FileSpreadsheet } from 'lucide-react';
 import EquipmentDetailModal from '@/components/equipment/EquipmentDetailModal';
 import EquipmentDetailView from '@/components/equipment/EquipmentDetailView';
+import InterventionFormModal from '@/components/interventions/InterventionFormModal';
+import MaintenanceFormModal from '@/components/maintenance/MaintenanceFormModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { fetchDocumentsForEquipment } from '@/lib/documents';
 import EquipmentListView from '@/components/equipment/EquipmentListView';
 import EquipmentGridView from '@/components/equipment/EquipmentGridView';
 import { useSimplePrint } from '@/hooks/use-simple-print';
@@ -36,10 +42,16 @@ import { exportEquipmentsToExcel } from '@/lib/equipment-export';
 
 const EquipmentPage: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const { handlePrint } = useSimplePrint();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [showInterventionModal, setShowInterventionModal] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterName, setFilterName] = useState('');
@@ -52,8 +64,32 @@ const EquipmentPage: React.FC = () => {
   const [filterSupplier, setFilterSupplier] = useState<string>('all');
   const [filterManufacturer, setFilterManufacturer] = useState<string>('all');
   const [filterUF, setFilterUF] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterInventory, setFilterInventory] = useState('');
+  const [filterPurchaseDateFrom, setFilterPurchaseDateFrom] = useState('');
+  const [filterPurchaseDateTo, setFilterPurchaseDateTo] = useState('');
+  const [filterServiceDateFrom, setFilterServiceDateFrom] = useState('');
+  const [filterServiceDateTo, setFilterServiceDateTo] = useState('');
+  const [filterWarrantyFrom, setFilterWarrantyFrom] = useState('');
+  const [filterWarrantyTo, setFilterWarrantyTo] = useState('');
+  const [filterPriceMin, setFilterPriceMin] = useState('');
+  const [filterPriceMax, setFilterPriceMax] = useState('');
+  const [filterHealthMin, setFilterHealthMin] = useState('');
+  const [filterHealthMax, setFilterHealthMax] = useState('');
+  const [filterLoanStatus, setFilterLoanStatus] = useState<string>('all');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+
+  // Ouvrir automatiquement le scanner si le paramètre 'scan' est présent
+  useEffect(() => {
+    if (searchParams.get('scan') === 'true') {
+      setIsScanning(true);
+      // Nettoyer l'URL après avoir ouvert le scanner
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('scan');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [searchParams]);
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   // Sorting states
@@ -124,9 +160,22 @@ const EquipmentPage: React.FC = () => {
     filterSupplier !== 'all' ||
     filterManufacturer !== 'all' ||
     filterUF !== 'all' ||
+    filterType !== 'all' ||
+    filterLoanStatus !== 'all' ||
     filterName !== '' ||
-    filterModel !== '',
-    [filterStatus, filterGroup, filterBuilding, filterService, filterLocation, filterSupplier, filterManufacturer, filterUF, filterName, filterModel]
+    filterModel !== '' ||
+    filterInventory !== '' ||
+    filterPurchaseDateFrom !== '' ||
+    filterPurchaseDateTo !== '' ||
+    filterServiceDateFrom !== '' ||
+    filterServiceDateTo !== '' ||
+    filterWarrantyFrom !== '' ||
+    filterWarrantyTo !== '' ||
+    filterPriceMin !== '' ||
+    filterPriceMax !== '' ||
+    filterHealthMin !== '' ||
+    filterHealthMax !== '',
+    [filterStatus, filterGroup, filterBuilding, filterService, filterLocation, filterSupplier, filterManufacturer, filterUF, filterType, filterLoanStatus, filterName, filterModel, filterInventory, filterPurchaseDateFrom, filterPurchaseDateTo, filterServiceDateFrom, filterServiceDateTo, filterWarrantyFrom, filterWarrantyTo, filterPriceMin, filterPriceMax, filterHealthMin, filterHealthMax]
   );
 
   const uniqueSuppliers = useMemo(() => {
@@ -159,6 +208,21 @@ const EquipmentPage: React.FC = () => {
     return [...new Set(models)].sort();
   }, [enrichedEquipments]);
 
+  const uniqueInventoryNumbers = useMemo(() => {
+    if (!enrichedEquipments) return [];
+    const inventoryNumbers = enrichedEquipments.map(e => e.inventory_number).filter((n): n is string => !!n);
+    return [...new Set(inventoryNumbers)].sort();
+  }, [enrichedEquipments]);
+
+  // Maintenir selectedEquipment synchronisé lorsque les données des équipements changent
+  useEffect(() => {
+    if (!selectedEquipment || !enrichedEquipments) return;
+    const updated = enrichedEquipments.find(e => e.id === selectedEquipment.id);
+    if (updated) {
+      setSelectedEquipment(updated as any);
+    }
+  }, [enrichedEquipments]);
+
   const handleClearFilters = () => {
     setFilterStatus('all');
     setFilterGroup('all');
@@ -168,8 +232,21 @@ const EquipmentPage: React.FC = () => {
     setFilterSupplier('all');
     setFilterManufacturer('all');
     setFilterUF('all');
+    setFilterType('all');
+    setFilterLoanStatus('all');
     setFilterName('');
     setFilterModel('');
+    setFilterInventory('');
+    setFilterPurchaseDateFrom('');
+    setFilterPurchaseDateTo('');
+    setFilterServiceDateFrom('');
+    setFilterServiceDateTo('');
+    setFilterWarrantyFrom('');
+    setFilterWarrantyTo('');
+    setFilterPriceMin('');
+    setFilterPriceMax('');
+    setFilterHealthMin('');
+    setFilterHealthMax('');
   };
 
   // Enrichment, Filter and Sort logic
@@ -210,8 +287,54 @@ const EquipmentPage: React.FC = () => {
       const matchesSupplier = filterSupplier === 'all' || equipment.supplier === filterSupplier;
       const matchesManufacturer = filterManufacturer === 'all' || equipment.manufacturer === filterManufacturer;
       const matchesUF = filterUF === 'all' || equipment.uf === filterUF;
+      const matchesType = filterType === 'all' || (equipment.equipment_type && equipment.equipment_type.toString().trim().toLowerCase() === String(filterType).trim().toLowerCase());
+      const matchesInventory = filterInventory === '' || (equipment.inventory_number && equipment.inventory_number.toLowerCase().includes(filterInventory.toLowerCase()));
+      const matchesLoanStatus = filterLoanStatus === 'all' || (filterLoanStatus === 'loaned' && equipment.loan_status) || (filterLoanStatus === 'available' && !equipment.loan_status);
 
-      return matchesSearch && matchesName && matchesModel && matchesStatus && matchesGroup && matchesBuilding && matchesService && matchesLocation && matchesSupplier && matchesManufacturer && matchesUF;
+      // Date filters
+      const matchesPurchaseDate = () => {
+        if (!equipment.purchase_date) return filterPurchaseDateFrom === '' && filterPurchaseDateTo === '';
+        const purchaseDate = new Date(equipment.purchase_date);
+        const fromDate = filterPurchaseDateFrom ? new Date(filterPurchaseDateFrom) : null;
+        const toDate = filterPurchaseDateTo ? new Date(filterPurchaseDateTo) : null;
+        return (!fromDate || purchaseDate >= fromDate) && (!toDate || purchaseDate <= toDate);
+      };
+
+      const matchesServiceDate = () => {
+        if (!equipment.date_mise_en_service) return filterServiceDateFrom === '' && filterServiceDateTo === '';
+        const serviceDate = new Date(equipment.date_mise_en_service);
+        const fromDate = filterServiceDateFrom ? new Date(filterServiceDateFrom) : null;
+        const toDate = filterServiceDateTo ? new Date(filterServiceDateTo) : null;
+        return (!fromDate || serviceDate >= fromDate) && (!toDate || serviceDate <= toDate);
+      };
+
+      const matchesWarrantyDate = () => {
+        if (!equipment.warranty_expiry) return filterWarrantyFrom === '' && filterWarrantyTo === '';
+        const warrantyDate = new Date(equipment.warranty_expiry);
+        const fromDate = filterWarrantyFrom ? new Date(filterWarrantyFrom) : null;
+        const toDate = filterWarrantyTo ? new Date(filterWarrantyTo) : null;
+        return (!fromDate || warrantyDate >= fromDate) && (!toDate || warrantyDate <= toDate);
+      };
+
+      // Price filters
+      const matchesPrice = () => {
+        if (!equipment.purchase_price) return filterPriceMin === '' && filterPriceMax === '';
+        const price = equipment.purchase_price;
+        const minPrice = filterPriceMin ? parseFloat(filterPriceMin) : null;
+        const maxPrice = filterPriceMax ? parseFloat(filterPriceMax) : null;
+        return (!minPrice || price >= minPrice) && (!maxPrice || price <= maxPrice);
+      };
+
+      // Health filters
+      const matchesHealth = () => {
+        if (equipment.health_percentage === null) return filterHealthMin === '' && filterHealthMax === '';
+        const health = equipment.health_percentage;
+        const minHealth = filterHealthMin ? parseFloat(filterHealthMin) : null;
+        const maxHealth = filterHealthMax ? parseFloat(filterHealthMax) : null;
+        return (!minHealth || health >= minHealth) && (!maxHealth || health <= maxHealth);
+      };
+
+      return matchesSearch && matchesName && matchesModel && matchesStatus && matchesGroup && matchesBuilding && matchesService && matchesLocation && matchesSupplier && matchesManufacturer && matchesUF && matchesType && matchesInventory && matchesLoanStatus && matchesPurchaseDate() && matchesServiceDate() && matchesWarrantyDate() && matchesPrice() && matchesHealth();
     });
 
 
@@ -219,6 +342,9 @@ const EquipmentPage: React.FC = () => {
   }, [
     enrichedEquipments, searchTerm, filterName, filterModel, filterStatus, filterGroup,
     filterBuilding, filterService, filterLocation, filterSupplier, filterManufacturer, filterUF,
+    filterType, filterInventory, filterLoanStatus, filterPurchaseDateFrom, filterPurchaseDateTo,
+    filterServiceDateFrom, filterServiceDateTo, filterWarrantyFrom, filterWarrantyTo,
+    filterPriceMin, filterPriceMax, filterHealthMin, filterHealthMax,
     buildings, services, locations, equipmentGroups
   ]);
 
@@ -293,6 +419,9 @@ const EquipmentPage: React.FC = () => {
     return sorted;
   }, [enrichedAndFilteredEquipments, sortColumn, sortDirection]);
 
+  const filteredCount = sortedEquipments.length;
+  const totalCount = enrichedEquipments?.length || 0;
+
   const handleSortChange = (column: EquipmentSortColumn) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -312,7 +441,8 @@ const EquipmentPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleViewEquipment = (equipment: Equipment) => {
+  const handleViewEquipment = (equipment: any) => {
+    // Support optional __initialAction injected by list actions
     setSelectedEquipment(equipment);
     setIsDetailViewOpen(true);
   };
@@ -436,9 +566,8 @@ const EquipmentPage: React.FC = () => {
     }
 
       try {
-      // Extraire les equipment_group_ids et les propriétés calculées pour les gérer séparément
+      // Extraire les propriétés calculées pour les gérer séparément
       const { 
-        equipment_group_ids, 
         associated_group_ids, 
         ...equipmentDataWithoutGroups 
       } = updatedEquipmentData;
@@ -449,10 +578,9 @@ const EquipmentPage: React.FC = () => {
       delete sanitized.serviceName;
       delete sanitized.locationName;
       delete sanitized.groupNames;
-      delete sanitized.tag_number;
       delete sanitized.associated_group_ids;
       
-      const groupIds = equipment_group_ids || associated_group_ids || [];
+      const groupIds = associated_group_ids || [];
       
       if (isNew) {
         console.log("Creating new equipment:", sanitized);
@@ -538,9 +666,6 @@ const EquipmentPage: React.FC = () => {
           const equipmentForHistory = {
             ...sanitized,
             status: sanitized.status as any,
-            relationships: Array.isArray(sanitized.relationships) 
-              ? sanitized.relationships 
-              : []
           } as Equipment;
           
           await logEquipmentChangesInPage(existingEquipment as any, equipmentForHistory);
@@ -679,7 +804,12 @@ const EquipmentPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Gestion des Équipements</h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl font-bold">Gestion des Équipements</h1>
+        <Badge variant="outline" className="whitespace-nowrap">
+          {hasActiveFilters || searchTerm ? filteredCount : totalCount}
+        </Badge>
+      </div>
 
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-3">
         <div className="flex items-center gap-2 flex-grow w-full lg:w-auto min-w-0">
@@ -740,6 +870,34 @@ const EquipmentPage: React.FC = () => {
             setFilterManufacturer={setFilterManufacturer}
             filterUF={filterUF}
             setFilterUF={setFilterUF}
+            filterType={filterType}
+            setFilterType={setFilterType}
+            filterType={filterType}
+            setFilterType={setFilterType}
+            filterInventory={filterInventory}
+            setFilterInventory={setFilterInventory}
+            filterPurchaseDateFrom={filterPurchaseDateFrom}
+            setFilterPurchaseDateFrom={setFilterPurchaseDateFrom}
+            filterPurchaseDateTo={filterPurchaseDateTo}
+            setFilterPurchaseDateTo={setFilterPurchaseDateTo}
+            filterServiceDateFrom={filterServiceDateFrom}
+            setFilterServiceDateFrom={setFilterServiceDateFrom}
+            filterServiceDateTo={filterServiceDateTo}
+            setFilterServiceDateTo={setFilterServiceDateTo}
+            filterWarrantyFrom={filterWarrantyFrom}
+            setFilterWarrantyFrom={setFilterWarrantyFrom}
+            filterWarrantyTo={filterWarrantyTo}
+            setFilterWarrantyTo={setFilterWarrantyTo}
+            filterPriceMin={filterPriceMin}
+            setFilterPriceMin={setFilterPriceMin}
+            filterPriceMax={filterPriceMax}
+            setFilterPriceMax={setFilterPriceMax}
+            filterHealthMin={filterHealthMin}
+            setFilterHealthMin={setFilterHealthMin}
+            filterHealthMax={filterHealthMax}
+            setFilterHealthMax={setFilterHealthMax}
+            filterLoanStatus={filterLoanStatus}
+            setFilterLoanStatus={setFilterLoanStatus}
             buildings={buildings || []}
             services={services || []}
             locations={locations || []}
@@ -748,12 +906,13 @@ const EquipmentPage: React.FC = () => {
             ufs={uniqueUFs}
             uniqueNames={uniqueNames}
             uniqueModels={uniqueModels}
+            uniqueInventoryNumbers={uniqueInventoryNumbers}
             isOpen={isFilterModalOpen}
             onOpenChange={setIsFilterModalOpen}
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-1 w-full lg:w-auto flex-shrink-0">
+        <div className="flex flex-col sm:flex-row gap-1 w-full lg:w-auto flex-shrink-0 items-stretch">
            <div className="flex w-full sm:w-auto">
              <Button
                variant={viewMode === 'list' ? 'secondary' : 'outline'}
@@ -852,6 +1011,27 @@ const EquipmentPage: React.FC = () => {
             services={services || []}
             locations={locations || []}
             onEquipmentClick={handleViewEquipment}
+            onCreateInterventionFromList={(eq) => {
+              setSelectedEquipment(eq);
+              setShowInterventionModal(true);
+            }}
+            onOpenDocumentsFromList={async (eq) => {
+              try {
+                setSelectedEquipment(eq);
+                setDocumentsLoading(true);
+                const docs = await fetchDocumentsForEquipment(eq.id);
+                setDocuments(docs || []);
+                setShowDocumentsModal(true);
+              } finally {
+                setDocumentsLoading(false);
+              }
+            }}
+            onOpenMaintenanceFromList={(eq) => {
+              setSelectedEquipment(eq);
+              setShowMaintenanceModal(true);
+            }}
+            onEditEquipment={handleEditEquipment}
+            onDeleteEquipment={(eq) => handleDeleteEquipment(eq, true)}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSortChange={handleSortChange}
@@ -883,6 +1063,7 @@ const EquipmentPage: React.FC = () => {
         isOpen={isDetailViewOpen}
         onClose={handleCloseDetailView}
         equipment={selectedEquipment}
+        initialAction={(selectedEquipment as any)?.__initialAction || null}
         onEdit={handleEditEquipment}
         onDelete={() => handleDeleteEquipment(selectedEquipment!, true)}
         groups={enrichedGroups || []}
@@ -890,6 +1071,58 @@ const EquipmentPage: React.FC = () => {
         services={services || []}
         locations={locations || []}
       />
+
+      {/* Direct Intervention Modal from list */}
+      {selectedEquipment && (
+        <InterventionFormModal
+          isOpen={showInterventionModal}
+          onClose={() => setShowInterventionModal(false)}
+          onSave={async () => { setShowInterventionModal(false); await refetchEquipments(); }}
+          equipmentId={selectedEquipment.id}
+          currentUser={user}
+        />
+      )}
+
+      {/* Direct Maintenance Modal from list */}
+      {selectedEquipment && (
+        <MaintenanceFormModal
+          isOpen={showMaintenanceModal}
+          onClose={() => setShowMaintenanceModal(false)}
+          onSave={() => setShowMaintenanceModal(false)}
+          prefillEquipment={{ equipment_id: selectedEquipment.id, equipment_name: selectedEquipment.name }}
+          currentUser={user}
+        />
+      )}
+
+      {/* Direct Documents Modal from list */}
+      <Dialog open={showDocumentsModal} onOpenChange={setShowDocumentsModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Documents techniques {selectedEquipment ? `- ${selectedEquipment.name}` : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-auto">
+            {documentsLoading ? (
+              <div className="text-sm text-muted-foreground">Chargement…</div>
+            ) : documents.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Aucun document trouvé.</div>
+            ) : (
+              <ul className="space-y-2">
+                {documents.map((doc) => (
+                  <li key={doc.id} className="border rounded p-2">
+                    <div className="font-medium">{doc.title || doc.filename}</div>
+                    {doc.description && (
+                      <div className="text-xs text-muted-foreground">{doc.description}</div>
+                    )}
+                    {doc.fileurl && (
+                      <a href={doc.fileurl} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Ouvrir</a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <QrScanner
         isOpen={isScanning}

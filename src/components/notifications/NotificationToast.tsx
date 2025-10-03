@@ -1,14 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { toast, useToast } from '@/hooks/use-toast';
 import { useUserNotifications } from '@/hooks/useUserNotifications';
 import { useCustomAuth } from '@/hooks/useCustomAuth';
 import { Bell, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 export function NotificationToast() {
   const { notifications } = useUserNotifications();
   const { user } = useCustomAuth();
+  const { dismiss } = useToast();
+  const location = useLocation();
   const [lastNotificationCount, setLastNotificationCount] = useState(0);
   const [shownNotifications, setShownNotifications] = useState<Set<string>>(new Set());
+  const [tick, setTick] = useState(0);
+
+  // Persistence helpers to avoid duplicate toasts across reloads
+  const STORAGE_KEY = 'shown_notification_ids_v1';
+  const loadShownFromStorage = (): Set<string> => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? new Set(arr as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+  const saveShownToStorage = (ids: Set<string>) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(ids))); } catch {}
+  };
+
+  // Initialize from storage once
+  useEffect(() => {
+    setShownNotifications(loadShownFromStorage());
+  }, []);
 
   useEffect(() => {
     if (!user || !notifications.length) return;
@@ -21,49 +46,45 @@ export function NotificationToast() {
       return isRecipient && !notification.is_completed;
     });
 
-    // Vérifier s'il y a de nouvelles notifications
-    if (userNotifications.length > lastNotificationCount) {
-      const newNotifications = userNotifications.filter(
-        notification => !shownNotifications.has(notification.id)
-      );
+    // Ne toast QUE quand la notification est DUE (scheduled_date <= now)
+    const now = new Date();
+    const dueNotifications = userNotifications.filter(n => {
+      const at = new Date(n.scheduled_date).getTime();
+      return Number.isFinite(at) && at <= now.getTime();
+    });
 
-      newNotifications.forEach(notification => {
-        // Ne montrer que les notifications récentes (dernières 24h)
-        const notificationDate = new Date(notification.created_at);
-        const now = new Date();
-        const hoursDiff = (now.getTime() - notificationDate.getTime()) / (1000 * 60 * 60);
-        
-        if (hoursDiff <= 24 && !shownNotifications.has(notification.id)) {
-          showNotificationToast(notification);
-          setShownNotifications(prev => new Set([...prev, notification.id]));
-        }
+    const toShow = dueNotifications.filter(n => !shownNotifications.has(n.id));
+    toShow.forEach(n => {
+      showNotificationToast(n);
+      setShownNotifications(prev => {
+        const next = new Set([...prev, n.id]);
+        saveShownToStorage(next);
+        return next;
       });
-    }
+    });
 
     setLastNotificationCount(userNotifications.length);
-  }, [notifications, user, lastNotificationCount, shownNotifications]);
+  }, [notifications, user, lastNotificationCount, shownNotifications, tick]);
+
+  // Tick every second to evaluate due notifications at the exact time
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => (t + 1) % 1_000_000), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Réinitialiser les compteurs quand l'utilisateur se déconnecte
+  useEffect(() => {
+    const isLoginPage = typeof location?.pathname === 'string' && location.pathname.toLowerCase().includes('login');
+    if (!user || isLoginPage) {
+      // Fermer tous les toasts visibles
+      dismiss();
+      setLastNotificationCount(0);
+      setShownNotifications(new Set());
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    }
+  }, [user, location?.pathname, dismiss, lastNotificationCount, shownNotifications]);
 
   const showNotificationToast = (notification: any) => {
-    const getPriorityIcon = (priority: string) => {
-      switch (priority) {
-        case 'urgent': return <AlertTriangle className="h-4 w-4 text-red-500" />;
-        case 'high': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-        case 'medium': return <Bell className="h-4 w-4 text-blue-500" />;
-        case 'low': return <CheckCircle className="h-4 w-4 text-green-500" />;
-        default: return <Bell className="h-4 w-4" />;
-      }
-    };
-
-    const getPriorityLabel = (priority: string) => {
-      switch (priority) {
-        case 'urgent': return 'Urgent';
-        case 'high': return 'Priorité élevée';
-        case 'medium': return 'Priorité moyenne';
-        case 'low': return 'Priorité faible';
-        default: return 'Notification';
-      }
-    };
-
     const scheduledDate = new Date(notification.scheduled_date);
     const now = new Date();
     const isOverdue = scheduledDate < now;
@@ -75,14 +96,14 @@ export function NotificationToast() {
     } else if (isToday) {
       timeInfo = '📅 Aujourd\'hui';
     } else {
-      timeInfo = `📅 ${scheduledDate.toLocaleDateString('fr-FR')}`;
+      timeInfo = (() => { const d = scheduledDate; const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `📅 ${dd}/${mm}/${yyyy}`; })();
     }
 
     toast({
       title: (
         <div className="flex items-center gap-2">
-          {getPriorityIcon(notification.priority)}
-          <span>{getPriorityLabel(notification.priority)}</span>
+          <Bell className="h-4 w-4 text-blue-500" />
+          <span>Rappel</span>
         </div>
       ) as any,
       description: (
@@ -97,7 +118,7 @@ export function NotificationToast() {
           </p>
         </div>
       ) as any,
-      duration: notification.persistent === false ? (notification.priority === 'urgent' ? 10000 : 5000) : Infinity,
+      duration: 6000,
     });
   };
 

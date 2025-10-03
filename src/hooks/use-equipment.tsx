@@ -68,7 +68,6 @@ export function useEquipment() {
       const validEquipment: Equipment = {
         ...equipment,
         status: equipment.status as EquipmentStatus,
-        relationships: Array.isArray(equipment.relationships) ? equipment.relationships : [],
       };
       
       // Retirer les champs calculés/non stockés en base avant mutation

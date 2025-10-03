@@ -71,7 +71,10 @@ export const getEmptyDateValue = (dateValue: string | null | undefined, fallback
     if (isNaN(date.getTime())) {
       return fallback;
     }
-    return date.toLocaleDateString('fr-FR');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   } catch {
     return fallback;
   }

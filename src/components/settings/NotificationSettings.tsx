@@ -18,34 +18,41 @@ export function NotificationSettings() {
     sendTestNotification,
     clearAllNotifications
   } = useMaintenanceNotifications();
+  const { scheduleClassicNotification } = useMaintenanceNotifications();
 
   const [testing, setTesting] = useState(false);
 
   const handleTestNotification = async () => {
     setTesting(true);
     try {
+      console.log('🧪 Début du test de notification native...');
       const success = await sendTestNotification();
       if (success) {
         toast({
           title: "Test réussi",
-          description: "La notification de test a été envoyée avec succès.",
+          description: "La notification native a été envoyée. Vérifiez la barre de notification Android.",
         });
+        console.log('✅ Test de notification native réussi');
       } else {
         toast({
           title: "Erreur",
-          description: "Impossible d'envoyer la notification de test.",
+          description: "Impossible d'envoyer la notification native. Vérifiez les permissions.",
           variant: "destructive"
         });
+        console.log('❌ Test de notification native échoué');
       }
     } catch (error) {
+      console.error('❌ Erreur lors du test:', error);
       toast({
         title: "Erreur",
-        description: "Échec du test de notification.",
+        description: "Échec du test de notification native.",
         variant: "destructive"
       });
     }
     setTesting(false);
   };
+
+  // Tests classiques déplacés dans la page Notifications
 
   const handleRequestPermissions = async () => {
     const granted = await requestPermissions();
@@ -163,6 +170,22 @@ export function NotificationSettings() {
                 />
               </div>
 
+              {/* Notifications classiques (interventions, générales) */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">
+                    Notifications classiques
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Interventions et notifications générales
+                  </p>
+                </div>
+                <Switch
+                  checked={preferences.classicNotifications}
+                  onCheckedChange={(checked) => savePreferences({ classicNotifications: checked })}
+                />
+              </div>
+
               {/* Rappels de maintenance */}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -195,47 +218,43 @@ export function NotificationSettings() {
                 />
               </div>
 
-              {/* Délai de rappel */}
-              {preferences.maintenanceReminders && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Rappel avant échéance
-                  </Label>
-                  <Select
-                    value={preferences.reminderDays.toString()}
-                    onValueChange={(value) => savePreferences({ reminderDays: parseInt(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 jour avant</SelectItem>
-                      <SelectItem value="2">2 jours avant</SelectItem>
-                      <SelectItem value="3">3 jours avant</SelectItem>
-                      <SelectItem value="7">1 semaine avant</SelectItem>
-                      <SelectItem value="14">2 semaines avant</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {/* Rappel avant échéance retiré (géré dans les modals) */}
 
               {/* Boutons d'action */}
-              <div className="flex gap-2 pt-4 border-t">
+              <div className="flex flex-wrap gap-2 pt-4 border-t w-full">
                 <Button
                   variant="outline"
                   onClick={handleTestNotification}
                   disabled={testing || !isEnabled}
-                  className="flex-1"
+                  className="w-full sm:w-auto flex-1"
                 >
                   <TestTube2 className="h-4 w-4 mr-2" />
-                  {testing ? "Envoi..." : "Test"}
+                  {testing ? "Envoi..." : "Test maintenance"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setTesting(true);
+                    try {
+                      await scheduleClassicNotification('🧪 Test Rappel', undefined, 'Test immédiat de rappel');
+                      toast({ title: 'Test rappel envoyé', description: 'Une notification classique immédiate a été envoyée.' });
+                    } catch {
+                      toast({ title: 'Erreur', description: "Impossible d'envoyer le test de rappel.", variant: 'destructive' });
+                    }
+                    setTesting(false);
+                  }}
+                  disabled={testing || !isEnabled}
+                  className="w-full sm:w-auto flex-1"
+                >
+                  <TestTube2 className="h-4 w-4 mr-2" />
+                  {testing ? "Envoi..." : "Test rappel"}
                 </Button>
                 
                 <Button
                   variant="outline"
                   onClick={handleClearNotifications}
                   disabled={!isEnabled}
-                  className="flex-1"
+                  className="w-full sm:w-auto flex-1"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Effacer tout

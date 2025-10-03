@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useCollection } from '@/hooks/use-supabase-collection';
+import { toast } from '@/components/ui/use-toast';
 import { EquipmentGroup } from '@/types/equipmentGroup';
 import { useEquipment } from '@/hooks/use-equipment';
 import { Equipment, EquipmentRelationship, RelationshipType, EquipmentStatus } from '@/types/equipment';
@@ -85,12 +87,13 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
   const [formData, setFormData] = useState<Equipment>(
     equipment ? {
       ...equipment,
+      purchase_price: equipment.purchase_price ?? null,
       date_mise_en_service: parseDateFromSupabase(equipment.date_mise_en_service),
       purchase_date: parseDateFromSupabase(equipment.purchase_date),
       warranty_expiry: parseDateFromSupabase(equipment.warranty_expiry),
       // `equipment_group_ids` est maintenant `associated_group_ids` et sera peuplé via useEffect
       associated_group_ids: [], // Initialize as empty, will be fetched
-      relationships: equipment.relationships || [],
+      
       image_url: equipment.image_url || '',
       uf: equipment.uf || '',
       building_id: equipment.building_id || '',
@@ -100,6 +103,8 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       serial_number: equipment.serial_number || '',
       supplier: equipment.supplier || '',
       loan_status: equipment.loan_status || false,
+      description: equipment.description || '',
+      equipment_type: equipment.equipment_type || 'technique',
     } : {
       id: generateEquipmentId(),
       name: '',
@@ -108,6 +113,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       supplier: '',
       status: 'operational' as EquipmentStatus,
       health_percentage: 100,
+      purchase_price: null,
       date_mise_en_service: '',
       purchase_date: '',
       warranty_expiry: '',
@@ -116,12 +122,13 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       service_id: '',
       location_id: '',
       image_url: '',
-      relationships: [],
+      
       associated_group_ids: [], // Initialize as empty for new equipment
       inventory_number: '',
-      tag_number: '', // Added tag_number as per schema
       serial_number: '',
       loan_status: false,
+      description: '',
+      equipment_type: 'technique',
     }
   );
   const [qrSize, setQrSize] = useState(128);
@@ -154,11 +161,12 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
         const associatedGroupIds = await junctionTableManager.getGroupsForEquipment(equipment.id);
         const initialFormData = {
           ...equipment,
+          purchase_price: equipment.purchase_price ?? null,
           date_mise_en_service: parseDateFromSupabase(equipment.date_mise_en_service),
           purchase_date: parseDateFromSupabase(equipment.purchase_date),
           warranty_expiry: parseDateFromSupabase(equipment.warranty_expiry),
           associated_group_ids: associatedGroupIds, // Populate with fetched IDs
-          relationships: equipment.relationships || [],
+          
           image_url: equipment.image_url || '',
           uf: equipment.uf || '',
           building_id: equipment.building_id || '',
@@ -168,6 +176,8 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
           serial_number: equipment.serial_number || '',
           supplier: equipment.supplier || '',
           loan_status: equipment.loan_status || false,
+          description: equipment.description || '',
+          equipment_type: equipment.equipment_type || 'technique',
         };
         setFormData(initialFormData);
         setSelectedBuildingId(initialFormData.building_id || '');
@@ -182,6 +192,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
           supplier: '',
           status: 'operational' as EquipmentStatus,
           health_percentage: 100,
+          purchase_price: null,
           date_mise_en_service: '',
           purchase_date: '',
           warranty_expiry: '',
@@ -190,11 +201,13 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
           service_id: '',
           location_id: '',
           image_url: '',
-          relationships: [],
+          
           associated_group_ids: [], // Initialize as empty for new equipment
           inventory_number: '',
           serial_number: '',
           loan_status: false,
+          description: '',
+          category: null,
         };
         setFormData(newFormData);
         setSelectedBuildingId('');
@@ -247,6 +260,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       purchase_date: formatDateForSupabase(formData.purchase_date),
       warranty_expiry: formatDateForSupabase(formData.warranty_expiry),
       health_percentage: formData.health_percentage !== undefined && formData.health_percentage !== null ? Number(formData.health_percentage) : (isNewEquipment ? 100 : null),
+      purchase_price: formData.purchase_price !== undefined && formData.purchase_price !== null && formData.purchase_price !== '' ? Number(formData.purchase_price) : null,
       // `associated_group_ids` n'est pas envoyé directement à la table `equipments`
       // Il sera géré séparément via la table de jonction
       building_id: formData.building_id || null,
@@ -262,10 +276,9 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
      // Ne pas supprimer `associated_group_ids` car nous en avons besoin pour la sauvegarde
      // const { associated_group_ids, ...equipmentDataToSave } = formattedFormData;
      
-     // Garder les groupes dans les données à sauvegarder sous le nom attendu par le système
+     // Ne plus envoyer equipment_group_ids; la jonction gère les groupes
      const equipmentDataToSave = {
-       ...formattedFormData,
-       equipment_group_ids: formattedFormData.associated_group_ids || []
+       ...formattedFormData
      };
 
     console.log("handleSubmit (Modal): Données de l'équipement APRES formatage:", equipmentDataToSave);
@@ -416,13 +429,32 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       if (!currentGroupIds.includes(groupId)) {
         handleInputChange('associated_group_ids', [...currentGroupIds, groupId]);
       }
+      // Auto-fill description from group if empty
+      if (!formData.description || formData.description.trim() === '') {
+        const selectedGroup = equipmentGroups.find(g => g.id === groupId);
+        if (selectedGroup && selectedGroup.description) {
+          handleInputChange('description', selectedGroup.description);
+        }
+      } else {
+        const selectedGroup = equipmentGroups.find(g => g.id === groupId);
+        if (selectedGroup && selectedGroup.description && selectedGroup.description.trim() !== '') {
+          toast({
+            title: "Conflit de description",
+            description: "Une description existe déjà pour l'équipement et une description est aussi définie au niveau du groupe. La description de l'équipement sera conservée.",
+          });
+        }
+      }
     } else {
       handleInputChange('associated_group_ids', currentGroupIds.filter(id => id !== groupId));
     }
   };
 
-  const filteredServices = services.filter(service => service.building_id === selectedBuildingId);
-  const filteredLocations = locations.filter(location => location.service_id === selectedServiceId);
+  const filteredServices = services
+    .filter(service => service.building_id === selectedBuildingId)
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+  const filteredLocations = locations
+    .filter(location => location.service_id === selectedServiceId)
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -490,6 +522,17 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
                   </div>
                 </div>
 
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description || ''}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    placeholder="Description de l'équipement"
+                    rows={4}
+                  />
+                </div>
+
 
                 {!isNewEquipment && (
                   <div className="space-y-2">
@@ -545,6 +588,19 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="purchase_price">Prix d'achat (€)</Label>
+                  <Input
+                    id="purchase_price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.purchase_price ?? ''}
+                    onChange={(e) => handleInputChange('purchase_price', e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="inventory_number">Inventaire</Label>
                   <Input
                     id="inventory_number"
@@ -562,6 +618,22 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
                     onChange={(e) => handleInputChange('serial_number', e.target.value)}
                     placeholder="Numéro de série"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="equipment_type">Type d'équipement</Label>
+                  <Select
+                    value={formData.equipment_type || 'technique'}
+                    onValueChange={(value) => handleInputChange('equipment_type', (value as any) || 'technique')}
+                  >
+                    <SelectTrigger id="equipment_type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="biomedical">Biomédical</SelectItem>
+                      <SelectItem value="technique">Technique</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -609,7 +681,9 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
                       <SelectValue placeholder="Sélectionner un bâtiment" />
                     </SelectTrigger>
                     <SelectContent>
-                      {buildings.map(building => (
+                      {buildings
+                        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                        .map(building => (
                         <SelectItem key={building.id} value={building.id}>
                           {building.name}
                         </SelectItem>

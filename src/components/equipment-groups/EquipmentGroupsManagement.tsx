@@ -211,6 +211,36 @@ const EquipmentGroupsManagement = () => {
       // Gérer les relations avec la table de jonction
       if (groupId) {
         await junctionTableManager.updateGroupEquipmentMembers(groupId, formData.equipment_ids);
+        
+        // Propager automatiquement la description du groupe vers les équipements associés
+        if (formData.description && formData.description.trim().length > 0) {
+          try {
+            const result = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
+            
+            // Afficher un message informatif sur la propagation
+            if (result && typeof result === 'object') {
+              if (result.updated > 0 && result.skipped > 0) {
+                toast({
+                  title: "Description mise à jour",
+                  description: `Description propagée vers ${result.updated} équipement(s). ${result.skipped} équipement(s) avec description personnalisée ont été préservés.`,
+                });
+              } else if (result.updated > 0) {
+                toast({
+                  title: "Description mise à jour",
+                  description: `Description propagée vers ${result.updated} équipement(s).`,
+                });
+              } else if (result.skipped > 0) {
+                toast({
+                  title: "Description du groupe mise à jour",
+                  description: `Tous les équipements associés (${result.skipped}) ont déjà une description personnalisée qui a été préservée.`,
+                });
+              }
+            }
+          } catch (error) {
+            console.warn('Erreur lors de la propagation de la description:', error);
+            // Ne pas bloquer la sauvegarde pour cette erreur
+          }
+        }
       }
 
       // Synchroniser les images d'équipement avec l'image du groupe

@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Equipment, EquipmentHistoryEntry, EquipmentStatus, EquipmentRelationship } from '@/types/equipment';
+import { Equipment, EquipmentHistoryEntry, EquipmentStatus } from '@/types/equipment';
 import { deletePartsByEquipmentId } from './parts';
 import { deleteDocumentsByEquipmentId } from './documents';
 import { Json } from '@/integrations/supabase/types';
@@ -24,9 +24,6 @@ export async function fetchEquipmentById(equipmentId: string): Promise<Equipment
     const validEquipment: Equipment = {
       ...data,
       status: data.status as EquipmentStatus,
-      relationships: Array.isArray(data.relationships) 
-        ? (data.relationships as unknown as EquipmentRelationship[]) 
-        : [],
       loan_status: (data as any).loan_status || false
     };
     console.log(`Fetched equipment:`, validEquipment);
@@ -145,9 +142,9 @@ async function safelyHandleDocumentsAndParts(equipmentId: string): Promise<void>
   
   try {
     // For documents: get documents that contain this equipment ID
-    const { data: docs } = await supabase
+  const { data: docs } = await supabase
       .from('documents')
-      .select('id, equipment_ids, group_ids')
+      .select('id, equipment_ids')
       .contains('equipment_ids', [equipmentId]);
     
     for (const doc of docs || []) {
@@ -162,10 +159,9 @@ async function safelyHandleDocumentsAndParts(equipmentId: string): Promise<void>
         .eq('document_id', doc.id);
       
       const hasOtherEquipmentIds = updatedEquipmentIds.length > 0;
-      const hasDirectGroupIds = doc.group_ids && doc.group_ids.length > 0;
       const hasGroupRelations = groupUsage && groupUsage.length > 0;
       
-      if (!hasOtherEquipmentIds && !hasDirectGroupIds && !hasGroupRelations) {
+      if (!hasOtherEquipmentIds && !hasGroupRelations) {
         // No more references, delete the document
         console.log(`Deleting document ${doc.id} - no remaining references`);
         await supabase.from('documents').delete().eq('id', doc.id);
@@ -354,15 +350,21 @@ export async function deleteEquipment(equipmentId: string, shouldDeleteEmptyGrou
     // 3. Safely handle documents and parts, checking group usage
     await safelyHandleDocumentsAndParts(equipmentId);
     
-    // 4. Handle group cleanup if needed
+    // 4. Remove junction table memberships to satisfy FK constraints
+    await supabase
+      .from('equipment_group_members')
+      .delete()
+      .eq('equipment_id', equipmentId);
+
+    // 5. Handle group cleanup if needed (based on previous memberships)
     await handleGroupCleanup(equipmentId, groupIds, shouldDeleteEmptyGroups);
 
-    // 5. Delete the equipment's image from storage if it exists
+    // 6. Delete the equipment's image from storage if it exists
     if (imageUrl) {
       await deleteEquipmentImage(imageUrl);
     }
 
-    // 6. Finally, delete the equipment itself from the database
+    // 7. Finally, delete the equipment itself from the database
     console.log(`Deleting equipment ${equipmentId} from database`);
     const { error: deleteError } = await supabase
       .from('equipments')

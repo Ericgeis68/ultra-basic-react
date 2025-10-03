@@ -306,11 +306,11 @@ const UFManagement = () => {
             </div>
             
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full">
                 <Button
                   variant="outline"
                   onClick={() => ufFileRef.current?.click()}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 w-full sm:w-auto"
                 >
                   <Upload className="h-4 w-4" />
                   Importer CSV/Excel
@@ -318,7 +318,7 @@ const UFManagement = () => {
                 <Button
                   variant="outline"
                   onClick={downloadTemplate}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 w-full sm:w-auto"
                 >
                   <Download className="h-4 w-4" />
                   Modèle
@@ -326,7 +326,7 @@ const UFManagement = () => {
                 <Button
                   variant="outline"
                   onClick={downloadTemplateExcel}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 w-full sm:w-auto"
                 >
                   <FileSpreadsheet className="h-4 w-4" />
                   Modèle Excel

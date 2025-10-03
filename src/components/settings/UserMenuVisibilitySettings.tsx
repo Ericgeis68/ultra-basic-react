@@ -147,16 +147,16 @@ const UserMenuVisibilitySettings = () => {
             const userPreferences = (user as any).menu_preferences as UserMenuPreferences || {};
             
             return (
-              <div key={user.id} className="border rounded-md p-4 space-y-4">
+              <div key={user.id} className="border rounded-md p-3 sm:p-4 space-y-3 sm:space-y-4">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-semibold">{user.full_name}</h3>
-                    <p className="text-sm text-muted-foreground">@{user.username} ({user.role === 'admin' ? 'Administrateur' : 'Technicien'})</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm sm:text-base truncate">{user.full_name}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">@{user.username} ({user.role === 'admin' ? 'Administrateur' : 'Technicien'})</p>
                   </div>
-                  {user.isUpdating && <span className="text-sm text-muted-foreground">Mise à jour...</span>}
+                  {user.isUpdating && <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0 ml-2">Mise à jour...</span>}
                 </div>
                 <Separator />
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                   {configurableMenuItems.map(item => {
                      // Determine the current visibility state for this user and this menu item
                      const isVisible = userPreferences[item.settingKey as keyof UserMenuPreferences] !== false;
@@ -165,8 +165,8 @@ const UserMenuVisibilitySettings = () => {
                      const isDisabled = user.role === 'admin';
 
                      return (
-                       <div key={item.settingKey} className="flex items-center justify-between space-x-2">
-                         <Label htmlFor={`switch-${user.id}-${item.settingKey}`} className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                       <div key={item.settingKey} className="flex items-center justify-between space-x-2 p-2 sm:p-3 rounded-md border bg-card">
+                         <Label htmlFor={`switch-${user.id}-${item.settingKey}`} className="flex-1 text-xs sm:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                            {item.label}
                          </Label>
                          <Switch
@@ -174,6 +174,7 @@ const UserMenuVisibilitySettings = () => {
                            checked={isVisible}
                            onCheckedChange={(checked) => handleMenuToggle(user.id, item.settingKey as keyof UserMenuPreferences, checked)}
                            disabled={isDisabled}
+                           className="flex-shrink-0"
                          />
                        </div>
                      );

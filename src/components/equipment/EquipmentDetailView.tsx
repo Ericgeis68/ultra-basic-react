@@ -11,6 +11,7 @@ import {
   CalendarClock,
   Loader2,
   Tag,
+  Settings,
 } from 'lucide-react';
 import { Equipment, EquipmentHistoryEntry } from '@/types/equipment';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
@@ -75,6 +76,7 @@ interface EquipmentDetailViewProps {
   onClose: () => void;
   onEdit?: (equipment: Equipment) => void;
   onDelete?: () => void;
+  initialAction?: 'documents' | 'create-intervention' | 'maintenance' | null;
 }
 
 const fieldNameTranslations: { [key: string]: string } = {
@@ -109,6 +111,7 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
   onClose,
   onEdit,
   onDelete,
+  initialAction = null,
 }) => {
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL LOGIC
   const [currentTab, setCurrentTab] = useState('info');
@@ -295,6 +298,20 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
       setCurrentHealthPercentage(equipment.health_percentage ?? 0);
     }
   }, [equipment]);
+
+  useEffect(() => {
+    if (isOpen && initialAction) {
+      if (initialAction === 'documents') {
+        setShowDocuments(true);
+        setCurrentTab('actions');
+      } else if (initialAction === 'create-intervention') {
+        setCurrentTab('actions');
+        handleCreateIntervention();
+      } else if (initialAction === 'maintenance') {
+        setCurrentTab('actions');
+      }
+    }
+  }, [isOpen, initialAction]);
 
   useEffect(() => {
     if (isOpen && equipment) {
@@ -913,6 +930,14 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
             </DialogTitle>
           </DialogHeader>
 
+          {equipment.equipment_type && (
+            <div className="mt-2">
+              <Badge variant="outline">
+                {equipment.equipment_type === 'biomedical' ? 'Biomédical' : 'Technique'}
+              </Badge>
+            </div>
+          )}
+
           {displayImage && (
             <div className="mt-2 border rounded-md overflow-hidden equipment-image-container">
               <AspectRatio ratio={16/9}>
@@ -968,6 +993,7 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
               onSetCurrentTab={setCurrentTab}
             />
 
+
             <EquipmentHistoryView
               currentTab={currentTab}
               historyViewMode={historyViewMode}
@@ -999,15 +1025,22 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
             />
 
             <EquipmentActionsTab
-              onCreateIntervention={handleCreateIntervention}
-              checkingOngoingIntervention={checkingOngoingIntervention}
-              showDocuments={showDocuments}
-              onToggleDocuments={setShowDocuments}
-              documentsLoading={documentsLoading}
-              documentsError={documentsError}
-              equipmentDocuments={equipmentDocuments}
               equipment={equipment}
-              currentUser={user}
+              buildings={buildings}
+              services={services}
+              locations={locations}
+              equipmentGroups={groups}
+              loading={false}
+              error={null}
+              showQrCode={showQrCode}
+              isMobile={isMobile}
+              onToggleQrCode={() => setShowQrCode(!showQrCode)}
+              onPrintQRCode={handlePrintQRCode}
+              onDownloadQRCode={handleDownloadQRCode}
+              onEdit={handleEditEquipment}
+              onDelete={handleDeleteEquipment}
+              onSetCurrentTab={setCurrentTab}
+              autoOpenMaintenance={initialAction === 'maintenance'}
             />
           </Tabs>
 

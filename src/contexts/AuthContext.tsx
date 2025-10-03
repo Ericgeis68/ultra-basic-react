@@ -79,6 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data);
         sessionStorage.setItem('currentUser', JSON.stringify(data));
         applyUserTheme(data);
+        try { window.dispatchEvent(new Event('auth:updated')); } catch {}
         return data;
       } else {
          console.warn('User not found in Supabase DB. Clearing local state.');
@@ -124,6 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data);
         sessionStorage.setItem('currentUser', JSON.stringify(data));
         applyUserTheme(data);
+        try { window.dispatchEvent(new Event('auth:updated')); } catch {}
         setIsLoading(false);
         return true;
       } else {
@@ -143,6 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     sessionStorage.removeItem('currentUser');
     document.documentElement.classList.remove('dark');
+    try { window.dispatchEvent(new Event('auth:updated')); } catch {}
   };
 
   const updateUser = async (updates: Partial<User>) => {
@@ -172,6 +175,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if ('dark_mode' in updates) {
           applyUserTheme(updatedData);
         }
+        try { window.dispatchEvent(new Event('auth:updated')); } catch {}
         setIsLoading(false);
       } else {
          setIsLoading(false);
@@ -215,6 +219,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (updatedData) {
         setUser(updatedData);
         sessionStorage.setItem('currentUser', JSON.stringify(updatedData));
+        try { window.dispatchEvent(new Event('auth:updated')); } catch {}
       }
       setIsLoading(false);
     } catch (error: any) {
@@ -254,6 +259,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setUser(updatedData);
               sessionStorage.setItem('currentUser', JSON.stringify(updatedData));
            }
+           try { window.dispatchEvent(new Event('auth:updated')); } catch {}
            setIsLoading(false);
         } else {
            setIsLoading(false);

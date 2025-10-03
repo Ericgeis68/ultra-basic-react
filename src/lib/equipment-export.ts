@@ -25,10 +25,19 @@ interface ExportData {
 export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData) => {
   const { printOptions, groups, buildings, services, locations } = data;
   
+  const formatDateDMY = (value?: string | Date | null) => {
+    if (!value) return '';
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+  
   // Helper functions
   const getGroupNames = (equipment: Equipment) => {
-    // Check both equipment_group_ids and associated_group_ids for compatibility
-    const groupIds = equipment.equipment_group_ids || (equipment as any).associated_group_ids;
+    const groupIds = (equipment as any).associated_group_ids;
     if (!groupIds || groupIds.length === 0) {
       return '';
     }
@@ -65,7 +74,7 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
     }
   };
 
-  // Define columns based on format
+  // Define columns based on format (original behaviour for Equipment menu)
   const allColumns = [
     { key: 'name', label: 'Nom' },
     { key: 'model', label: 'Modèle' },
@@ -79,11 +88,11 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
     { key: 'loan_status', label: 'En prêt' },
     { key: 'health', label: 'Santé (%)' },
     { key: 'purchase_date', label: 'Date Achat' },
+    { key: 'purchase_price', label: "Prix d'achat (€)" },
     { key: 'warranty_expiry', label: 'Garantie' },
     { key: 'groups', label: 'Groupes' }
   ];
 
-  // Filter columns based on options
   let columnsToExport = allColumns;
   
   if (printOptions.format === 'grid') {
@@ -91,7 +100,6 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
       ['name', 'model', 'status', 'health'].includes(col.key)
     );
   } else {
-    // Remove columns based on options
     if (!printOptions.includeLocation) {
       columnsToExport = columnsToExport.filter(col => col.key !== 'location');
     }
@@ -104,7 +112,7 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
   }
 
   // Create CSV content with UTF-8 BOM
-  const BOM = '\uFEFF'; // UTF-8 BOM for proper Excel encoding
+  const BOM = '\uFEFF';
   const headers = columnsToExport.map(col => col.label);
   let csvContent = BOM + headers.join(';') + '\n';
 
@@ -138,8 +146,6 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
           const buildingName = getBuildingName(equipment.building_id);
           const serviceName = getServiceName(equipment.service_id);
           const locationName = getLocationName(equipment.location_id);
-          
-          // Only show parts that have values
           const locationParts = [buildingName, serviceName, locationName].filter(part => part);
           value = locationParts.join(' > ');
           break;
@@ -153,10 +159,13 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
           value = equipment.health_percentage !== null ? `${equipment.health_percentage}%` : '';
           break;
         case 'purchase_date':
-          value = equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString('fr-FR') : '';
+          value = formatDateDMY(equipment.purchase_date);
+          break;
+        case 'purchase_price':
+          value = equipment.purchase_price != null ? String(equipment.purchase_price).replace('.', ',') : '';
           break;
         case 'warranty_expiry':
-          value = equipment.warranty_expiry ? new Date(equipment.warranty_expiry).toLocaleDateString('fr-FR') : '';
+          value = formatDateDMY(equipment.warranty_expiry);
           break;
         case 'groups':
           value = getGroupNames(equipment);
@@ -165,7 +174,6 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
           value = '';
       }
       
-      // Escape quotes and wrap in quotes if contains semicolon or quotes
       if (value.includes(';') || value.includes('"') || value.includes('\n')) {
         value = '"' + value.replace(/"/g, '""') + '"';
       }
@@ -191,10 +199,19 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
 export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportData) => {
   const { groups, buildings, services, locations } = data;
   
+  const formatDateDMY = (value?: string | Date | null) => {
+    if (!value) return '';
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+  
   // Helper functions
   const getGroupNames = (equipment: Equipment) => {
-    // Check both equipment_group_ids and associated_group_ids for compatibility
-    const groupIds = equipment.equipment_group_ids || (equipment as any).associated_group_ids;
+    const groupIds = (equipment as any).associated_group_ids;
     if (!groupIds || groupIds.length === 0) {
       return '';
     }
@@ -231,7 +248,7 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
     }
   };
 
-  // Define columns for Excel export
+  // Define columns for Excel export (original behaviour for Equipment menu)
   const columns = [
     { key: 'name', label: 'Nom', width: 25 },
     { key: 'model', label: 'Modèle', width: 20 },
@@ -247,6 +264,7 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
     { key: 'loan_status', label: 'En prêt', width: 12 },
     { key: 'health_percentage', label: 'Santé (%)', width: 12 },
     { key: 'purchase_date', label: 'Date Achat', width: 15 },
+    { key: 'purchase_price', label: "Prix d'achat (€)", width: 15 },
     { key: 'warranty_expiry', label: 'Garantie', width: 15 },
     { key: 'date_mise_en_service', label: 'Mise en Service', width: 15 },
     { key: 'groups', label: 'Groupes', width: 30 }
@@ -295,16 +313,19 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
           row[col.label] = equipment.loan_status ? 'Oui' : 'Non';
           break;
         case 'health_percentage':
-          row[col.label] = equipment.health_percentage !== null ? equipment.health_percentage : '';
+          row[col.label] = equipment.health_percentage !== null ? `${equipment.health_percentage}%` : '';
           break;
         case 'purchase_date':
-          row[col.label] = equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString('fr-FR') : '';
+          row[col.label] = formatDateDMY(equipment.purchase_date);
+          break;
+        case 'purchase_price':
+          row[col.label] = equipment.purchase_price != null ? equipment.purchase_price : '';
           break;
         case 'warranty_expiry':
-          row[col.label] = equipment.warranty_expiry ? new Date(equipment.warranty_expiry).toLocaleDateString('fr-FR') : '';
+          row[col.label] = formatDateDMY(equipment.warranty_expiry);
           break;
         case 'date_mise_en_service':
-          row[col.label] = equipment.date_mise_en_service ? new Date(equipment.date_mise_en_service).toLocaleDateString('fr-FR') : '';
+          row[col.label] = formatDateDMY(equipment.date_mise_en_service);
           break;
         case 'groups':
           row[col.label] = getGroupNames(equipment);

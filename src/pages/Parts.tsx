@@ -583,7 +583,10 @@ const Parts = () => {
       <div className="mb-4 md:mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold mb-2">Gestion des Pièces Détachées</h1>
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-xl md:text-2xl font-bold">Gestion des Pièces Détachées</h1>
+              <Badge variant="outline" className="whitespace-nowrap">{sortedParts.length}</Badge>
+            </div>
             <p className="text-sm md:text-base text-muted-foreground">Suivez et gérez votre inventaire de pièces détachées par équipement</p>
           </div>
 

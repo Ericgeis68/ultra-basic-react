@@ -23,10 +23,12 @@ import EquipmentGroupsPage from "./pages/EquipmentGroups";
 import EquipmentGroupsManagement from "./pages/EquipmentGroupsManagement";
 import { useIsMobile } from "./hooks/use-mobile";
 import { cn } from "./lib/utils";
-import ScannerPage from "./pages/Scanner";
 import Notifications from "./pages/Notifications";
 import { GlobalMaintenanceNotifications } from "./components/notifications/GlobalMaintenanceNotifications";
+import { GlobalMaintenanceSync } from "./components/notifications/GlobalMaintenanceSync";
 import { NotificationToast } from "./components/notifications/NotificationToast";
+import { GlobalUserNotifications } from "./components/notifications/GlobalUserNotifications";
+import { GlobalWebInTabNotifications } from "./components/notifications/GlobalWebInTabNotifications";
 
 const PrintStyles = () => (
   <style type="text/css">
@@ -159,6 +161,9 @@ const App = () => {
     <>
       <PrintStyles />
       <GlobalMaintenanceNotifications />
+      <GlobalMaintenanceSync />
+      <GlobalUserNotifications />
+      <GlobalWebInTabNotifications />
       <NotificationToast />
       <Routes>
         <Route path="/" element={
@@ -255,11 +260,6 @@ const App = () => {
         <Route path="/notifications" element={
           <ProtectedRoute>
             <Layout><Notifications /></Layout>
-          </ProtectedRoute>
-        } />
-        <Route path="/scanner" element={
-          <ProtectedRoute>
-            <Layout><ScannerPage /></Layout>
           </ProtectedRoute>
         } />
         <Route path="*" element={

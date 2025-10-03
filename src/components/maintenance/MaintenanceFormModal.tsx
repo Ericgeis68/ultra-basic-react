@@ -456,40 +456,125 @@ const MaintenanceFormModal: React.FC<MaintenanceFormModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Date prévue (only for one-time or standard recurring, not custom multi-date) */}
+                {/* Date prévue (responsive: mobile natif, desktop popover calendrier + heure/minutes) */}
                 {formFrequencyType !== 'custom' && (
                   <FormField
                     control={form.control}
                     name="next_due_date"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Date prévue</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(new Date(field.value), 'PPP', { locale: fr }) : "Sélectionner une date"}
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={field.value ? new Date(field.value) : undefined}
-                              onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
-                              initialFocus
-                              className="pointer-events-auto"
-                              locale={fr}
+                        <FormLabel>Date et heure prévues</FormLabel>
+                        {/* Mobile: input natif */}
+                        <div className="block sm:hidden">
+                          <FormControl>
+                            <Input
+                              type="datetime-local"
+                              min={(() => { const now = new Date(); const off = now.getTimezoneOffset(); const local = new Date(now.getTime() - off*60000); return local.toISOString().slice(0,16); })()}
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value)}
                             />
-                          </PopoverContent>
-                        </Popover>
+                          </FormControl>
+                        </div>
+                        {/* Desktop: popover calendrier + heures/minutes */}
+                        <div className="hidden sm:block">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-between",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  <span>
+                                    {field.value
+                                      ? new Date(field.value).toLocaleString()
+                                      : 'Choisir une date et une heure'}
+                                  </span>
+                                  <CalendarIcon className="h-4 w-4 opacity-70" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[320px] sm:w-[360px] p-3" align="start">
+                              <div className="space-y-3">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value ? new Date(field.value) : undefined}
+                                  disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                                  onSelect={(day) => {
+                                    const current = field.value ? new Date(field.value) : new Date();
+                                    if (day) {
+                                      const merged = new Date(day);
+                                      merged.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                                      const yyyy = merged.getFullYear();
+                                      const mm = String(merged.getMonth() + 1).padStart(2, '0');
+                                      const dd = String(merged.getDate()).padStart(2, '0');
+                                      const hh = String(merged.getHours()).padStart(2, '0');
+                                      const mi = String(merged.getMinutes()).padStart(2, '0');
+                                      field.onChange(`${yyyy}-${mm}-${dd}T${hh}:${mi}`);
+                                    }
+                                  }}
+                                  initialFocus
+                                  className="pointer-events-auto"
+                                  locale={fr}
+                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <FormLabel className="text-xs">Heures</FormLabel>
+                                    <Select
+                                      value={(field.value ? new Date(field.value).getHours() : 9).toString()}
+                                      onValueChange={(val) => {
+                                        const date = field.value ? new Date(field.value) : new Date();
+                                        date.setHours(parseInt(val), date.getMinutes(), 0, 0);
+                                        const yyyy = date.getFullYear();
+                                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                                        const dd = String(date.getDate()).padStart(2, '0');
+                                        const hh = String(date.getHours()).padStart(2, '0');
+                                        const mi = String(date.getMinutes()).padStart(2, '0');
+                                        field.onChange(`${yyyy}-${mm}-${dd}T${hh}:${mi}`);
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-56">
+                                        {Array.from({ length: 24 }).map((_, h) => (
+                                          <SelectItem key={h} value={h.toString()}>{String(h).padStart(2, '0')} h</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <FormLabel className="text-xs">Minutes</FormLabel>
+                                    <Select
+                                      value={(field.value ? new Date(field.value).getMinutes() : 0).toString()}
+                                      onValueChange={(val) => {
+                                        const date = field.value ? new Date(field.value) : new Date();
+                                        date.setMinutes(parseInt(val), 0, 0);
+                                        const yyyy = date.getFullYear();
+                                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                                        const dd = String(date.getDate()).padStart(2, '0');
+                                        const hh = String(date.getHours()).padStart(2, '0');
+                                        const mi = String(date.getMinutes()).padStart(2, '0');
+                                        field.onChange(`${yyyy}-${mm}-${dd}T${hh}:${mi}`);
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-56">
+                                        {[0, 5, 10, 15, 20, 30, 40, 45, 50, 55].map((m) => (
+                                          <SelectItem key={m} value={m.toString()}>{String(m).padStart(2, '0')} min</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

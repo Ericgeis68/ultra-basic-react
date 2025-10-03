@@ -127,14 +127,13 @@ const Documents = () => {
   const { data: services } = useCollection<Service>({ tableName: 'services' });
   const { data: locations } = useCollection<Location>({ tableName: 'locations' });
 
-  // FormData now includes group_ids for local state, but not for direct DB insertion into 'documents' table
-  const [formData, setFormData] = useState<Omit<Document, 'id' | 'group_ids'> & { file: File | null, group_ids: string[] }>({
+  // FormData includes group_ids only for local state (join table), not persisted in documents
+  const [formData, setFormData] = useState<Omit<Document, 'id'> & { file: File | null, group_ids: string[] }>({
     title: '',
     description: '',
     fileurl: '',
     filetype: '',
     category: 'manual', // Changed to 'manual' to match Document type
-    tags: [],
     equipment_ids: [],
     group_ids: [], // Managed locally for form, then via join table
     filename: '',
@@ -332,7 +331,7 @@ const Documents = () => {
             description: "Le document a été ajouté avec succès."
           });
           setFormData({
-            title: '', description: '', fileurl: '', filetype: '', category: 'manual', tags: [],
+            title: '', description: '', fileurl: '', filetype: '', category: 'manual',
             equipment_ids: [], group_ids: [], filename: '', size: 0, createdat: new Date().toISOString(), file: null
           });
           setSelectedDocument(null);
@@ -366,7 +365,6 @@ const Documents = () => {
         fileurl: finalFileUrl,
         filetype: finalFileType,
         category: formData.category || 'manual',
-        tags: formData.tags || [],
         equipment_ids: allEquipmentIds, // This column still holds combined IDs
         filename: finalFilename,
         size: finalFileSize,
@@ -430,7 +428,6 @@ const Documents = () => {
         fileurl: '',
         filetype: '',
         category: 'manual',
-        tags: [],
         equipment_ids: [],
         group_ids: [],
         filename: '',
@@ -470,7 +467,6 @@ const Documents = () => {
       fileurl: doc.fileurl || '',
       filetype: doc.filetype || '',
       category: doc.category || 'manual',
-      tags: doc.tags || [],
       equipment_ids: doc.equipment_ids || [],
       group_ids: associatedGroupIds, // Set from fetched join table data
       filename: doc.filename || '',
@@ -636,6 +632,16 @@ const Documents = () => {
     return sorted;
   }, [filteredDocuments, sortColumn, sortDirection, getEquipmentName, getValidEquipmentIds, getGroupName]);
 
+  const formatDateDMY = (value?: string | Date | null) => {
+    if (!value) return '';
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
   const handleSortChange = (column: DocumentSortColumn) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -655,7 +661,10 @@ const Documents = () => {
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Documentations</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">Documentations</h1>
+              <Badge variant="outline" className="whitespace-nowrap">{sortedDocuments.length}</Badge>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -709,21 +718,20 @@ const Documents = () => {
               </DropdownMenuContent>
             </DropdownMenu>
             <Button onClick={() => {
-              setIsEditMode(false);
-              setFormData({
-                title: '',
-                description: '',
-                fileurl: '',
-                filetype: '',
-                category: 'manual',
-                tags: [],
-                equipment_ids: [],
-                group_ids: [],
-                filename: '',
-                size: 0,
-                createdat: new Date().toISOString(),
-                file: null
-              });
+            setIsEditMode(false);
+            setFormData({
+              title: '',
+              description: '',
+              fileurl: '',
+              filetype: '',
+              category: 'manual',
+              equipment_ids: [],
+              group_ids: [],
+              filename: '',
+              size: 0,
+              createdat: new Date().toISOString(),
+              file: null
+            });
               setAssociationMode('equipment');
               setIsAddDialogOpen(true);
             }}>
@@ -977,7 +985,7 @@ const Documents = () => {
                     {doc.category && <Badge variant="outline">{doc.category}</Badge>}
                   </TableCell>
                   <TableCell>
-                    {doc.createdat ? new Date(doc.createdat).toLocaleDateString() : "Date inconnue"}
+                    {formatDateDMY(doc.createdat) || "Date inconnue"}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

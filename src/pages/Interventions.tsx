@@ -898,7 +898,7 @@ const Interventions = () => {
                           <h4 class="font-semibold text-sm text-gray-800 mb-2">Informations générales</h4>
                           <div class="space-y-1 text-sm">
                             <p><strong>Équipement:</strong> ${equipmentName}</p>
-                            <p><strong>Date d'intervention:</strong> ${intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}</p>
+                            <p><strong>Date d'intervention:</strong> ${intervention.scheduled_date ? (() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return 'Non définie'; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non définie'}</p>
                           </div>
                         </div>
                         <div>
@@ -929,7 +929,7 @@ const Interventions = () => {
                                 <div class="border-l-4 border-blue-200 pl-3">
                                   <div class="font-medium text-gray-800 break-words">${entry.technician_name || 'Technicien inconnu'}</div>
                                   <div class="text-gray-600 break-words whitespace-pre-wrap" style="font-size: 14px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word;">${entry.actions || ''}</div>
-                                  <div class="text-gray-500 text-xs">${entry.date_start ? new Date(entry.date_start).toLocaleDateString('fr-FR') : 'Date inconnue'}</div>
+                                  <div class="text-gray-500 text-xs">${entry.date_start ? (() => { const d = new Date(entry.date_start); if (isNaN(d.getTime())) return 'Date inconnue'; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Date inconnue'}</div>
                                 </div>
                               `).join('') : 
                               '<div class="border-l-4 border-blue-200 pl-3"><div class="font-medium text-gray-800 break-words">Aucun historique</div></div>'
@@ -1059,7 +1059,7 @@ const Interventions = () => {
               <div><strong>Équipement:</strong> ${equipmentName}</div>
               <div><strong>Modèle:</strong> ${equipment?.model || 'Non défini'}</div>
               <div><strong>N° de série:</strong> ${equipment?.serial_number || 'Non défini'}</div>
-              <div style="text-align: right;"><strong>Date planifiée:</strong> ${intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}</div>
+              <div style="text-align: right;"><strong>Date planifiée:</strong> ${intervention.scheduled_date ? (() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return 'Non définie'; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non définie'}</div>
             </div>
           </div>
 
@@ -1123,8 +1123,8 @@ const Interventions = () => {
                 <div style="border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: white;">
                   <div style="font-weight: 600; margin-bottom: 4px;">${index + 1}. ${entry.technician_name || 'Technicien inconnu'}</div>
                   <div style="color: #64748b; font-size: 11px; margin-bottom: 4px;">
-                    ${entry.date_start ? new Date(entry.date_start).toLocaleDateString('fr-FR') : 'Date inconnue'}
-                    ${entry.date_end ? ` → ${new Date(entry.date_end).toLocaleDateString('fr-FR')}` : ' (En cours)'}
+                    ${entry.date_start ? (() => { const d = new Date(entry.date_start); if (isNaN(d.getTime())) return 'Date inconnue'; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Date inconnue'}
+                    ${entry.date_end ? ` → ${(() => { const d = new Date(entry.date_end); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}` : ' (En cours)'}
                   </div>
                   ${entry.actions ? `<div style="margin: 4px 0;"><strong>Actions:</strong> ${entry.actions}</div>` : ''}
                   ${entry.parts_used && entry.parts_used.length > 0 ? `
@@ -1139,7 +1139,7 @@ const Interventions = () => {
 
           <!-- Pied de page -->
           <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 10px;">
-            Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+            Généré le ${(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()} à ${new Date().toLocaleTimeString('fr-FR')}
           </div>
         </div>
       `;
@@ -1229,8 +1229,6 @@ const Interventions = () => {
          equipment_id: interventionData.equipment_id || null,
          scheduled_date: interventionData.scheduled_date,
          completed_date: completedDate || null,
-         start_date: interventionData.start_date || null,
-         end_date: interventionData.end_date || null,
          type: interventionData.type,
          technicians: interventionData.technicians && interventionData.technicians.length > 0 ? interventionData.technicians : null,
          parts: partsForSupabase,
@@ -1442,6 +1440,8 @@ const Interventions = () => {
     return sorted;
   }, [filteredInterventions, sortColumn, sortDirection]);
 
+  const interventionsCount = sortedAndFilteredInterventions.length;
+
   const handleSortChange = (column: keyof InterventionUI) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -1537,7 +1537,10 @@ const Interventions = () => {
     <div className="container mx-auto py-20 px-4">
       <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold mb-1">Interventions</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold mb-1">Interventions</h1>
+            <Badge variant="outline" className="whitespace-nowrap">{interventionsCount}</Badge>
+          </div>
           <p className="text-sm text-muted-foreground">
             Gérez les interventions sur vos équipements
           </p>

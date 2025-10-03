@@ -17,6 +17,7 @@ interface EquipmentActionsTabProps {
   equipmentDocuments: Document[];
   equipment: Equipment | null;
   currentUser?: any;
+  autoOpenMaintenance?: boolean;
 }
 
 const EquipmentActionsTab: React.FC<EquipmentActionsTabProps> = ({
@@ -28,7 +29,8 @@ const EquipmentActionsTab: React.FC<EquipmentActionsTabProps> = ({
   documentsError,
   equipmentDocuments,
   equipment,
-  currentUser
+  currentUser,
+  autoOpenMaintenance = false
 }) => {
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
 
@@ -41,6 +43,12 @@ const EquipmentActionsTab: React.FC<EquipmentActionsTabProps> = ({
     console.log('Maintenance data:', maintenanceData);
     // Vous pouvez appeler une API ou une fonction de sauvegarde ici
   };
+
+  React.useEffect(() => {
+    if (autoOpenMaintenance) {
+      setIsMaintenanceModalOpen(true);
+    }
+  }, [autoOpenMaintenance]);
 
   return (
     <TabsContent value="actions" className="mt-4">

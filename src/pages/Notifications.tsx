@@ -9,6 +9,7 @@ import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { Plus, Bell, CheckCircle, Clock, AlertTriangle, Calendar } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useCustomAuth } from '@/hooks/useCustomAuth';
+import { useMaintenanceNotifications } from '@/hooks/useMaintenanceNotifications';
 
 export default function Notifications() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -16,8 +17,17 @@ export default function Notifications() {
   const { notifications, loading, getStats } = useUserNotifications();
   const { user, isAdmin } = useCustomAuth();
   const isMobile = useIsMobile();
+  const { scheduleClassicNotification, isEnabled } = useMaintenanceNotifications();
+  // Web Push annulé: retirer l’UI
   
   const stats = getStats();
+
+  // Forcer un rafraîchissement de la vue sur événements globaux sans changer d'onglet
+  React.useEffect(() => {
+    const rerender = () => setActiveTab(t => t);
+    window.addEventListener('notifications:updated', rerender);
+    return () => window.removeEventListener('notifications:updated', rerender);
+  }, []);
 
   const filterNotifications = (filter: string) => {
     const now = new Date();
@@ -37,8 +47,6 @@ export default function Notifications() {
     switch (filter) {
       case 'unread':
         return visibleNotifications.filter(n => !n.is_read);
-      case 'urgent':
-        return visibleNotifications.filter(n => !n.is_completed && new Date(n.scheduled_date) < new Date());
       case 'overdue':
         return visibleNotifications.filter(n => {
           const scheduled = new Date(n.scheduled_date);
@@ -57,7 +65,7 @@ export default function Notifications() {
     }
   };
 
-  const filteredNotifications = filterNotifications(activeTab);
+  const filteredNotifications = React.useMemo(() => filterNotifications(activeTab), [activeTab, notifications, user]);
 
   if (loading) {
     return (
@@ -85,19 +93,22 @@ export default function Notifications() {
             Gérez vos notifications et rappels personnels
           </p>
         </div>
-        
-        <Button 
-          onClick={() => setShowCreateModal(true)}
-          size={isMobile ? "sm" : "default"}
-          className="w-full sm:w-auto"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Créer une notification
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button 
+            onClick={() => setShowCreateModal(true)}
+            size={isMobile ? "sm" : "default"}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Créer
+          </Button>
+        </div>
       </div>
 
+      {/* Section de tests classiques supprimée selon demande */}
+
       {/* Statistiques */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -134,17 +145,7 @@ export default function Notifications() {
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <div>
-                <p className="text-2xl font-bold">{stats.urgent}</p>
-                <p className="text-xs text-muted-foreground">Urgent</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        
         
         <Card>
           <CardContent className="p-4">
@@ -161,11 +162,10 @@ export default function Notifications() {
 
       {/* Onglets de filtrage */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${isMobile ? 'grid-cols-3' : 'grid-cols-6'}`}>
+        <TabsList className={`grid w-full ${isMobile ? 'grid-cols-3' : 'grid-cols-5'}`}>
           <TabsTrigger value="all">Toutes</TabsTrigger>
           <TabsTrigger value="today">Aujourd'hui</TabsTrigger>
           <TabsTrigger value="unread">Non lues</TabsTrigger>
-          {!isMobile && <TabsTrigger value="urgent">Urgentes</TabsTrigger>}
           {!isMobile && <TabsTrigger value="overdue">En retard</TabsTrigger>}
           <TabsTrigger value="completed">Terminées</TabsTrigger>
         </TabsList>

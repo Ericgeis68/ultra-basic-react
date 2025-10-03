@@ -85,6 +85,38 @@ export function useCollection<T extends { id: string }>({
     // Added where and orderBy to dependencies so refetch happens if filters/sorting change
   }, [tableName, JSON.stringify(where), JSON.stringify(orderBy)]); // Use JSON.stringify for object/array dependencies
 
+  // Realtime subscription for this table (INSERT/UPDATE/DELETE)
+  useEffect(() => {
+    if (!tableName) return;
+
+    const channel = supabase
+      .channel(`realtime:${tableName}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: tableName as any }, (payload: any) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+
+        setData(prev => {
+          let next = prev;
+          if (eventType === 'INSERT' && newRow) {
+            const exists = prev.some(item => item.id === newRow.id);
+            if (!exists) next = [...prev, newRow as T];
+          } else if (eventType === 'UPDATE' && newRow) {
+            next = prev.map(item => (item.id === newRow.id ? { ...(item as any), ...(newRow as T) } : item));
+          } else if (eventType === 'DELETE' && oldRow) {
+            next = prev.filter(item => item.id !== oldRow.id);
+          }
+
+          // Re-apply client-side filtering and sorting if configured
+          // Note: where/orderBy are only applied during fetch; for realtime we keep simple merge
+          return next;
+        });
+      })
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [tableName]);
+
   const addDocument = async (document: Omit<T, 'id'>): Promise<boolean> => {
     try {
       console.log(`Adding document to ${tableName}:`, document);

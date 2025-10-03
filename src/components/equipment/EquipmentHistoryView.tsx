@@ -362,7 +362,7 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
               <div><strong>Équipement:</strong> ${equipmentName}</div>
               <div><strong>Modèle:</strong> ${equipment?.model || 'Non défini'}</div>
               <div><strong>N° de série:</strong> ${equipment?.serial_number || 'Non défini'}</div>
-              <div style="text-align: right;"><strong>Date planifiée:</strong> ${intervention.scheduled_date ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR') : 'Non définie'}</div>
+              <div style="text-align: right;"><strong>Date planifiée:</strong> ${intervention.scheduled_date ? (() => { const d = new Date(intervention.scheduled_date); if (isNaN(d.getTime())) return 'Non définie'; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Non définie'}</div>
             </div>
           </div>
 
@@ -425,8 +425,8 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
                 <div style="border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: white;">
                   <div style="font-weight: 600; margin-bottom: 4px;">${index + 1}. ${entry.technician_name || 'Technicien inconnu'}</div>
                   <div style="color: #64748b; font-size: 11px; margin-bottom: 4px;">
-                    ${entry.date_start ? new Date(entry.date_start).toLocaleDateString('fr-FR') : 'Date inconnue'}
-                    ${entry.date_end ? ` → ${new Date(entry.date_end).toLocaleDateString('fr-FR')}` : ' (En cours)'}
+                    ${entry.date_start ? (() => { const d = new Date(entry.date_start); if (isNaN(d.getTime())) return 'Date inconnue'; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })() : 'Date inconnue'}
+                    ${entry.date_end ? ` → ${(() => { const d = new Date(entry.date_end); if (isNaN(d.getTime())) return ''; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}` : ' (En cours)'}
                   </div>
                   ${entry.actions ? `<div style="margin: 4px 0;"><strong>Actions:</strong> ${entry.actions}</div>` : ''}
                   ${entry.parts_used && entry.parts_used.length > 0 ? `
@@ -441,7 +441,7 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
 
           <!-- Pied de page -->
           <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 10px;">
-            Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+            Généré le ${(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()} à ${new Date().toLocaleTimeString('fr-FR')}
           </div>
         </div>
       `;

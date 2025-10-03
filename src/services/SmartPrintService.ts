@@ -373,7 +373,7 @@ export class SmartPrintService {
     return `
       <div class="print-header" style="border-bottom: 2px solid #ddd; margin-bottom: 20px; padding-bottom: 10px;">
         <h1>${options.title || 'Liste des équipements'}</h1>
-        <p>Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+        <p>Généré le ${(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()} à ${new Date().toLocaleTimeString('fr-FR')}</p>
       </div>
     `;
   }

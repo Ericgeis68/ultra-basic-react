@@ -40,12 +40,36 @@ export class HTML2PDFService {
           body { margin: 0 !important; padding: 0 !important; background: white !important; }
           .print-preview { background: white !important; padding: 0 !important; }
           .print-content { background: white !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important; line-height: 1.4 !important; }
-          .print-page { box-shadow: none !important; margin: 0 !important; overflow: hidden !important; }
-          /* Conserver exactement l'apparence de l'aperçu (ne pas annuler transform/zoom) */
+          .print-page {
+            box-shadow: none !important;
+            margin: 0 !important;
+            /* CRITICAL: Allow content to overflow the page boundary during capture */
+            overflow: visible !important; 
+            position: relative !important; /* Ensure positioning context for children */
+          }
+          /* Ensure all children within a print-page also allow overflow and auto height */
+          .print-page * {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+          }
         `;
         const styleSheet = clonedDoc.createElement('style');
         styleSheet.textContent = printStyles;
         clonedDoc.head.appendChild(styleSheet);
+
+        // Spécifique pour les wrappers de cartes d'équipement qui ont des styles inline
+        // pour la hauteur fixe et l'overflow: hidden.
+        // Nous ciblons les divs qui sont des enfants de la grille de cartes et qui ont ces styles.
+        const cardWrappers = clonedDoc.querySelectorAll('.print-page > div > div > div[style*="height"][style*="overflow: hidden"]');
+        cardWrappers.forEach(wrapper => {
+          const el = wrapper as HTMLElement;
+          el.style.overflow = 'visible';
+          el.style.height = 'auto'; // Permettre à l'élément de prendre sa hauteur naturelle
+          el.style.maxHeight = 'none';
+          el.style.minHeight = 'auto';
+        });
       };
 
       // Chercher les pages dédiées
@@ -61,8 +85,9 @@ export class HTML2PDFService {
           allowTaint: false,
           backgroundColor: '#ffffff',
           logging: false,
+          // html2canvas devrait capturer la hauteur réelle après avoir rendu overflow: visible
           width: Math.ceil(rect.width),
-          height: Math.ceil(rect.height),
+          height: Math.ceil(rect.height), 
           scrollX: 0,
           scrollY: 0,
           removeContainer: true,

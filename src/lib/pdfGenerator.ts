@@ -263,7 +263,7 @@ export const generateInterventionPDF = (intervention: PDFInterventionData) => {
     doc.setFontSize(8);
     doc.setTextColor(secondaryColor);
     doc.text(
-      `Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+      `Généré le ${(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()} à ${new Date().toLocaleTimeString('fr-FR')}`,
       leftMargin,
       doc.internal.pageSize.height - 10
     );

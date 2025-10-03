@@ -5,8 +5,8 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 5
-const TOAST_REMOVE_DELAY = 5000
+const TOAST_LIMIT = 8
+const TOAST_REMOVE_DELAY = 7000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -160,6 +160,14 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Ensure auto-dismiss even if Radix timing does not fire as expected
+  const autoCloseMs = (props as any)?.duration ?? TOAST_REMOVE_DELAY
+  if (typeof autoCloseMs === 'number' && Number.isFinite(autoCloseMs)) {
+    setTimeout(() => {
+      dismiss()
+    }, autoCloseMs)
+  }
 
   return {
     id: id,

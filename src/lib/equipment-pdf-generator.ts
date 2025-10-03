@@ -54,11 +54,12 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
   };
 
   const getGroupNames = (equipment: Equipment) => {
-    if (!equipment.equipment_group_ids || equipment.equipment_group_ids.length === 0) {
+    const groupIds = (equipment as any).associated_group_ids || [];
+    if (!groupIds || groupIds.length === 0) {
       return 'Aucun groupe';
     }
     const groupNames = groups
-      .filter(group => equipment.equipment_group_ids!.includes(group.id))
+      .filter(group => groupIds.includes(group.id))
       .map(group => group.name);
     return groupNames.length > 0 ? groupNames.join(', ') : 'Aucun groupe';
   };
@@ -101,7 +102,7 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
 
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, margin, yPosition);
+    doc.text(`Généré le ${(() => { const d = new Date(); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; })()}`, margin, yPosition);
     yPosition += 8;
 
     doc.setTextColor(0, 0, 0);
