@@ -199,6 +199,14 @@ export const exportEquipmentsToCSV = (equipments: Equipment[], data: ExportData)
 export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportData) => {
   const { groups, buildings, services, locations } = data;
   
+  // Préparer les listes pour les menus déroulants
+  const buildingNames = buildings.map(b => b.name).sort();
+  const serviceNames = services.map(s => s.name).sort();
+  const locationNames = locations.map(l => l.name).sort();
+  const groupNames = groups.map(g => g.name).sort();
+  const statusOptions = ['Opérationnel', 'En maintenance', 'En panne'];
+  const loanOptions = ['Oui', 'Non'];
+  
   const formatDateDMY = (value?: string | Date | null) => {
     if (!value) return '';
     const d = value instanceof Date ? value : new Date(value);
@@ -345,6 +353,104 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
   // Set column widths
   const colWidths = columns.map(col => ({ wch: col.width }));
   ws['!cols'] = colWidths;
+
+  // Ajouter les validations de données (menus déroulants)
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  const dataValidations: any[] = [];
+
+  // Trouver les indices des colonnes
+  const buildingColIndex = columns.findIndex(col => col.key === 'building');
+  const serviceColIndex = columns.findIndex(col => col.key === 'service');
+  const locationColIndex = columns.findIndex(col => col.key === 'location');
+  const statusColIndex = columns.findIndex(col => col.key === 'status');
+  const loanColIndex = columns.findIndex(col => col.key === 'loan_status');
+  const groupsColIndex = columns.findIndex(col => col.key === 'groups');
+
+  // Ajouter 1000 lignes de validation (pour les futures saisies)
+  const maxRows = Math.max(equipments.length + 100, 1000);
+
+  // Validation pour les bâtiments
+  if (buildingColIndex >= 0 && buildingNames.length > 0) {
+    for (let row = 1; row <= maxRows; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: buildingColIndex });
+      dataValidations.push({
+        sqref: cellAddress,
+        type: 'list',
+        formula1: `"${buildingNames.join(',')}"`,
+        showDropDown: true
+      });
+    }
+  }
+
+  // Validation pour les services
+  if (serviceColIndex >= 0 && serviceNames.length > 0) {
+    for (let row = 1; row <= maxRows; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: serviceColIndex });
+      dataValidations.push({
+        sqref: cellAddress,
+        type: 'list',
+        formula1: `"${serviceNames.join(',')}"`,
+        showDropDown: true
+      });
+    }
+  }
+
+  // Validation pour les locaux
+  if (locationColIndex >= 0 && locationNames.length > 0) {
+    for (let row = 1; row <= maxRows; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: locationColIndex });
+      dataValidations.push({
+        sqref: cellAddress,
+        type: 'list',
+        formula1: `"${locationNames.join(',')}"`,
+        showDropDown: true
+      });
+    }
+  }
+
+  // Validation pour le statut
+  if (statusColIndex >= 0) {
+    for (let row = 1; row <= maxRows; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: statusColIndex });
+      dataValidations.push({
+        sqref: cellAddress,
+        type: 'list',
+        formula1: `"${statusOptions.join(',')}"`,
+        showDropDown: true
+      });
+    }
+  }
+
+  // Validation pour En prêt
+  if (loanColIndex >= 0) {
+    for (let row = 1; row <= maxRows; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: loanColIndex });
+      dataValidations.push({
+        sqref: cellAddress,
+        type: 'list',
+        formula1: `"${loanOptions.join(',')}"`,
+        showDropDown: true
+      });
+    }
+  }
+
+  // Validation pour les groupes (permet plusieurs valeurs séparées par virgule)
+  if (groupsColIndex >= 0 && groupNames.length > 0) {
+    for (let row = 1; row <= maxRows; row++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: groupsColIndex });
+      dataValidations.push({
+        sqref: cellAddress,
+        type: 'list',
+        formula1: `"${groupNames.join(',')}"`,
+        showDropDown: true
+      });
+    }
+  }
+
+  // Appliquer les validations de données
+  if (dataValidations.length > 0) {
+    ws['!dataValidation'] = dataValidations;
+  }
 
   // Style the header row
   const headerStyle = {
