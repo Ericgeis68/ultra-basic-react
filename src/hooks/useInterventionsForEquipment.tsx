@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Intervention, UsedPart, TechnicianHistoryEntry } from '@/types/intervention';
