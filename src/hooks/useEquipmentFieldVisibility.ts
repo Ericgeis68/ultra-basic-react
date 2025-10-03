@@ -19,6 +19,7 @@ interface EquipmentFieldVisibilitySettings {
     groups: boolean;
     date_mise_en_service: boolean;
     loan_status: boolean;
+    description: boolean;
   };
   list: {
     manufacturer: boolean;
@@ -38,6 +39,7 @@ interface EquipmentFieldVisibilitySettings {
     groups: boolean;
     date_mise_en_service: boolean;
     loan_status: boolean;
+    description: boolean;
   };
 }
 
@@ -60,6 +62,7 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     groups: false,
     date_mise_en_service: false,
     loan_status: true,
+    description: false,
   },
   list: {
     manufacturer: true,
@@ -79,6 +82,7 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     groups: true,
     date_mise_en_service: false,
     loan_status: true,
+    description: false,
   },
 };
 
