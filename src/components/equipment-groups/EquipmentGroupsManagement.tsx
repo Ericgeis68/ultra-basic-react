@@ -215,30 +215,23 @@ const EquipmentGroupsManagement = () => {
         // Propager automatiquement la description du groupe vers les équipements associés
         if (formData.description && formData.description.trim().length > 0) {
           try {
-            // @ts-expect-error - Type inference issue
-            const result = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
+            const result: any = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
             
             // Afficher un message informatif sur la propagation
             if (result) {
-              // @ts-expect-error - Type inference issue
               if (result.updated > 0 && result.skipped > 0) {
                 toast({
                   title: "Description mise à jour",
-                  // @ts-expect-error - Type inference issue
                   description: `Description propagée vers ${result.updated} équipement(s). ${result.skipped} équipement(s) avec description personnalisée ont été préservés.`,
                 });
-              // @ts-expect-error - Type inference issue  
               } else if (result.updated > 0) {
                 toast({
                   title: "Description mise à jour",
-                  // @ts-expect-error - Type inference issue
                   description: `Description propagée vers ${result.updated} équipement(s).`,
                 });
-              // @ts-expect-error - Type inference issue  
               } else if (result.skipped > 0) {
                 toast({
                   title: "Description du groupe mise à jour",
-                  // @ts-expect-error - Type inference issue
                   description: `Tous les équipements associés (${result.skipped}) ont déjà une description personnalisée qui a été préservée.`,
                 });
               }

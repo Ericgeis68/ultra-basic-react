@@ -260,7 +260,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       purchase_date: formatDateForSupabase(formData.purchase_date),
       warranty_expiry: formatDateForSupabase(formData.warranty_expiry),
       health_percentage: formData.health_percentage !== undefined && formData.health_percentage !== null ? Number(formData.health_percentage) : (isNewEquipment ? 100 : null),
-      purchase_price: formData.purchase_price !== undefined && formData.purchase_price !== null && formData.purchase_price !== '' ? Number(formData.purchase_price) : null,
+      purchase_price: formData.purchase_price !== undefined && formData.purchase_price !== null && String(formData.purchase_price) !== '' ? Number(formData.purchase_price) : null,
       // `associated_group_ids` n'est pas envoyé directement à la table `equipments`
       // Il sera géré séparément via la table de jonction
       building_id: formData.building_id || null,
