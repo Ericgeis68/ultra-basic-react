@@ -28,7 +28,16 @@ const EquipmentSelector: React.FC<EquipmentSelectorProps> = ({
 
       if (error) throw error;
       
-      setEquipments((data || []) as Equipment[]);
+      // Ensure proper typing of the data
+      const typedEquipments: Equipment[] = (data || []).map(item => ({
+        ...item,
+        status: item.status as EquipmentStatus,
+        relationships: (item.relationships as unknown as EquipmentRelationship[]) || [],
+        equipment_group_ids: item.equipment_group_ids || [],
+        loan_status: (item as any).loan_status || false
+      }));
+      
+      setEquipments(typedEquipments);
     } catch (error) {
       console.error('Error fetching equipments:', error);
     } finally {

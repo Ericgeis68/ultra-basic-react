@@ -215,10 +215,10 @@ const EquipmentGroupsManagement = () => {
         // Propager automatiquement la description du groupe vers les équipements associés
         if (formData.description && formData.description.trim().length > 0) {
           try {
-            const result: any = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
+            const result = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
             
             // Afficher un message informatif sur la propagation
-            if (result) {
+            if (result && typeof result === 'object') {
               if (result.updated > 0 && result.skipped > 0) {
                 toast({
                   title: "Description mise à jour",

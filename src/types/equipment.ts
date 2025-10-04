@@ -46,7 +46,6 @@ export interface Equipment {
   associated_group_ids?: string[];
   // Propriété legacy pour compatibilité de lecture seule dans l'UI
   equipment_group_ids?: string[];
-  relationships?: EquipmentRelationship[];
   inventory_number: string | null;
   serial_number: string | null;
   loan_status: boolean; // Indique si l'équipement est en prêt

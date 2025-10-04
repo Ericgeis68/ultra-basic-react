@@ -232,7 +232,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
       countBoolean(effectiveFields.service) +
       countBoolean(effectiveFields.location) +
       countBoolean(effectiveFields.groups) +
-      countBoolean((effectiveFields as any).description)
+      countBoolean(effectiveFields.description)
     );
   };
 

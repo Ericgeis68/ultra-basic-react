@@ -338,61 +338,13 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
     return row;
   });
 
-  // Create workbook
+  // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
-  
-  // Main equipment sheet
   const ws = XLSX.utils.json_to_sheet(excelData);
+
+  // Set column widths
   const colWidths = columns.map(col => ({ wch: col.width }));
   ws['!cols'] = colWidths;
-  
-  // Créer des feuilles de référence pour faciliter la saisie
-  // Feuille des Bâtiments
-  const buildingsSheet = XLSX.utils.aoa_to_sheet([
-    ['Bâtiments disponibles'],
-    ...buildings.map(b => [b.name])
-  ]);
-  
-  // Feuille des Services
-  const servicesSheet = XLSX.utils.aoa_to_sheet([
-    ['Services disponibles'],
-    ...services.map(s => [s.name])
-  ]);
-  
-  // Feuille des Localisations
-  const locationsSheet = XLSX.utils.aoa_to_sheet([
-    ['Localisations disponibles'],
-    ...locations.map(l => [l.name])
-  ]);
-  
-  // Feuille des Groupes
-  const groupsSheet = XLSX.utils.aoa_to_sheet([
-    ['Groupes disponibles'],
-    ...groups.map(g => [g.name])
-  ]);
-  
-  // Feuille des instructions
-  const instructionsSheet = XLSX.utils.aoa_to_sheet([
-    ['INSTRUCTIONS POUR L\'IMPORT D\'ÉQUIPEMENTS'],
-    [''],
-    ['Format des colonnes:'],
-    ['- Statut: Opérationnel, En maintenance, ou En panne'],
-    ['- En prêt: Oui ou Non'],
-    ['- Dates: JJ/MM/AAAA (ex: 25/12/2024)'],
-    ['- Prix: nombre décimal (ex: 1250.50)'],
-    ['- Santé: nombre entre 0 et 100'],
-    [''],
-    ['Référencez les feuilles suivantes pour les valeurs exactes à copier:'],
-    ['- Feuille "Bâtiments" pour la colonne Bâtiment'],
-    ['- Feuille "Services" pour la colonne Service'],
-    ['- Feuille "Localisations" pour la colonne Localisation'],
-    ['- Feuille "Groupes" pour la colonne Groupes'],
-    [''],
-    ['IMPORTANT:'],
-    ['- Copiez-collez les valeurs EXACTES depuis les feuilles de référence'],
-    ['- Ne modifiez pas les en-têtes de colonnes'],
-    ['- Laissez les cellules vides pour les valeurs optionnelles']
-  ]);
 
   // Style the header row
   const headerStyle = {
@@ -409,13 +361,8 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
     ws[cellAddress].s = headerStyle;
   }
 
-  // Add all sheets to workbook
-  XLSX.utils.book_append_sheet(wb, instructionsSheet, 'Instructions');
+  // Add worksheet to workbook
   XLSX.utils.book_append_sheet(wb, ws, 'Équipements');
-  XLSX.utils.book_append_sheet(wb, buildingsSheet, 'Bâtiments');
-  XLSX.utils.book_append_sheet(wb, servicesSheet, 'Services');
-  XLSX.utils.book_append_sheet(wb, locationsSheet, 'Localisations');
-  XLSX.utils.book_append_sheet(wb, groupsSheet, 'Groupes');
 
   // Generate filename with current date
   const currentDate = new Date().toISOString().split('T')[0];
