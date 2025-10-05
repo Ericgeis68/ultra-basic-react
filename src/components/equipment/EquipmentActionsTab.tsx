@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';

@@ -186,10 +186,10 @@ const Facilities = () => {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const objectPath = `${buildingId}.${ext}`; // chemin déterministe
       const { error: uploadError } = await supabase.storage
-        .from('equipment-images')
+        .from('buildings')
         .upload(objectPath, file, { cacheControl: '3600', upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('equipment-images').getPublicUrl(objectPath);
+      const { data: publicUrlData } = supabase.storage.from('buildings').getPublicUrl(objectPath);
       const publicUrl = publicUrlData?.publicUrl;
       if (!publicUrl) return null;
       return { publicUrl, objectPath };
