@@ -175,6 +175,7 @@ export type Database = {
           building_id: string | null
           created_at: string
           date_mise_en_service: string | null
+          description: string | null
           health_percentage: number | null
           id: string
           image_url: string | null
@@ -185,10 +186,12 @@ export type Database = {
           model: string | null
           name: string
           purchase_date: string | null
+          relationships: Json | null
           serial_number: string | null
           service_id: string | null
           status: string
           supplier: string | null
+          tag_number: string | null
           uf: string | null
           updated_at: string
           warranty_expiry: string | null
@@ -197,6 +200,7 @@ export type Database = {
           building_id?: string | null
           created_at?: string
           date_mise_en_service?: string | null
+          description?: string | null
           health_percentage?: number | null
           id?: string
           image_url?: string | null
@@ -207,10 +211,12 @@ export type Database = {
           model?: string | null
           name: string
           purchase_date?: string | null
+          relationships?: Json | null
           serial_number?: string | null
           service_id?: string | null
           status?: string
           supplier?: string | null
+          tag_number?: string | null
           uf?: string | null
           updated_at?: string
           warranty_expiry?: string | null
@@ -219,6 +225,7 @@ export type Database = {
           building_id?: string | null
           created_at?: string
           date_mise_en_service?: string | null
+          description?: string | null
           health_percentage?: number | null
           id?: string
           image_url?: string | null
@@ -229,10 +236,12 @@ export type Database = {
           model?: string | null
           name?: string
           purchase_date?: string | null
+          relationships?: Json | null
           serial_number?: string | null
           service_id?: string | null
           status?: string
           supplier?: string | null
+          tag_number?: string | null
           uf?: string | null
           updated_at?: string
           warranty_expiry?: string | null
