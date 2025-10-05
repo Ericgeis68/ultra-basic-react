@@ -267,7 +267,8 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
     { key: 'purchase_price', label: "Prix d'achat (€)", width: 15 },
     { key: 'warranty_expiry', label: 'Garantie', width: 15 },
     { key: 'date_mise_en_service', label: 'Mise en Service', width: 15 },
-    { key: 'groups', label: 'Groupes', width: 30 }
+    { key: 'groups', label: 'Groupes', width: 30 },
+    { key: 'equipment_type', label: "Type d'équipement", width: 18 }
   ];
 
   // Prepare data for Excel
@@ -330,6 +331,11 @@ export const exportEquipmentsToExcel = (equipments: Equipment[], data: ExportDat
         case 'groups':
           row[col.label] = getGroupNames(equipment);
           break;
+        case 'equipment_type': {
+          const t = equipment.equipment_type;
+          row[col.label] = t === 'biomedical' ? 'biomedical' : (t === 'technique' ? 'technique' : '');
+          break;
+        }
         default:
           row[col.label] = '';
       }

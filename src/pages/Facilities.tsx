@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -21,6 +21,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Upload } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Facility {
   id: string;
@@ -39,73 +42,82 @@ interface Facility {
   image?: string;
 }
 
-// Données d'exemple
-const initialFacilities: Facility[] = [
-  {
-    id: "1",
-    name: "Usine Principale Nord",
-    address: "123 Rue de l'Industrie, 75001 Paris",
-    type: "factory",
-    size: 5000,
-    equipmentCount: 48,
-    equipmentStatus: {
-      operational: 42,
-      maintenance: 4,
-      outOfOrder: 2
-    },
-    yearBuilt: 2010,
-    lastInspection: "2023-12-10",
-    image: "https://images.unsplash.com/photo-1565939572349-07d65074069c?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3"
-  },
-  {
-    id: "2",
-    name: "Entrepôt Central",
-    address: "45 Avenue du Stockage, 69002 Lyon",
-    type: "warehouse",
-    size: 8000,
-    equipmentCount: 26,
-    equipmentStatus: {
-      operational: 22,
-      maintenance: 2,
-      outOfOrder: 2
-    },
-    yearBuilt: 2015,
-    lastInspection: "2024-01-15"
-  },
-  {
-    id: "3",
-    name: "Bureaux Administratifs",
-    address: "78 Boulevard Haussmann, 75008 Paris",
-    type: "office",
-    size: 1200,
-    equipmentCount: 12,
-    equipmentStatus: {
-      operational: 11,
-      maintenance: 1,
-      outOfOrder: 0
-    },
-    yearBuilt: 2018,
-    lastInspection: "2024-02-28"
-  },
-  {
-    id: "4",
-    name: "Usine Secondaire Sud",
-    address: "56 Chemin des Manufactures, 13008 Marseille",
-    type: "factory",
-    size: 3500,
-    equipmentCount: 35,
-    equipmentStatus: {
-      operational: 30,
-      maintenance: 3,
-      outOfOrder: 2
-    },
-    yearBuilt: 2012,
-    lastInspection: "2023-11-05"
-  }
-];
+// Cette page affiche désormais les bâtiments depuis Supabase (table `buildings`).
 
 const Facilities = () => {
-  const [facilities, setFacilities] = useState<Facility[]>(initialFacilities);
+  const { toast } = useToast();
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  // Charger les installations depuis la table `buildings`
+  useEffect(() => {
+    const fetchBuildings = async () => {
+      const { data, error } = await supabase
+        .from('buildings')
+        .select('id, name, address, image_url, type, size, year_built, last_inspection, created_at, updated_at')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Erreur chargement bâtiments:', error);
+        toast({ title: 'Erreur', description: "Impossible de charger les installations.", variant: 'destructive' });
+        return;
+      }
+
+      const mapped: Facility[] = (data || []).map((b: any) => {
+        const img: string | undefined = b.image_url || undefined; // store public URL like equipments
+        return {
+          id: b.id,
+          name: b.name,
+          address: b.address || '',
+          type: (b.type as Facility['type']) || 'other',
+          size: (b.size as number) || 0,
+          equipmentCount: 0,
+          equipmentStatus: { operational: 0, maintenance: 0, outOfOrder: 0 },
+          yearBuilt: (b.year_built as number) || new Date(b.created_at).getFullYear(),
+          lastInspection: (b.last_inspection as string) || new Date(b.updated_at || b.created_at).toISOString().split('T')[0],
+          image: img,
+        };
+      });
+
+      setFacilities(mapped);
+    };
+
+    fetchBuildings();
+  }, [toast]);
+
+  // Charger les stats équipements par bâtiment pour refléter l'application
+  useEffect(() => {
+    const fetchEquipmentStats = async () => {
+      const { data, error } = await supabase
+        .from('equipments')
+        .select('id, building_id, status');
+
+      if (error) {
+        console.error('Erreur chargement équipements:', error);
+        return;
+      }
+
+      const byBuilding: Record<string, { total: number; operational: number; maintenance: number; outOfOrder: number; }> = {};
+      (data || []).forEach((e: any) => {
+        const bId = e.building_id as string | null;
+        if (!bId) return;
+        if (!byBuilding[bId]) {
+          byBuilding[bId] = { total: 0, operational: 0, maintenance: 0, outOfOrder: 0 };
+        }
+        byBuilding[bId].total += 1;
+        const status = (e.status || '').toString().toLowerCase();
+        if (status.includes('oper') || status === 'operational' || status === 'ok') byBuilding[bId].operational += 1;
+        else if (status.includes('maint') || status === 'maintenance' || status === 'in_maintenance') byBuilding[bId].maintenance += 1;
+        else byBuilding[bId].outOfOrder += 1;
+      });
+
+      setFacilities(prev => prev.map(f => {
+        const agg = byBuilding[f.id];
+        if (!agg) return { ...f, equipmentCount: 0, equipmentStatus: { operational: 0, maintenance: 0, outOfOrder: 0 } };
+        return { ...f, equipmentCount: agg.total, equipmentStatus: { operational: agg.operational, maintenance: agg.maintenance, outOfOrder: agg.outOfOrder } };
+      }));
+    };
+
+    fetchEquipmentStats();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -117,6 +129,11 @@ const Facilities = () => {
     yearBuilt: '',
     lastInspection: new Date().toISOString().split('T')[0]
   });
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
   
   const filteredFacilities = facilities.filter(facility => 
     facility.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -149,38 +166,166 @@ const Facilities = () => {
     }
   };
 
-  const handleAddFacility = () => {
-    if (!newFacility.name || !newFacility.address || !newFacility.size || !newFacility.yearBuilt) {
-      alert('Veuillez remplir tous les champs obligatoires');
+  const handleSelectImage = () => {
+    imageInputRef.current?.click();
+  };
+
+  const handleImageChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedImageFile(file);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImagePreviewUrl(url);
+    } else {
+      setImagePreviewUrl(null);
+    }
+  };
+
+  const uploadFacilityImage = async (file: File, buildingId: string): Promise<{ publicUrl: string; objectPath: string } | null> => {
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const objectPath = `${buildingId}.${ext}`; // chemin déterministe
+      const { error: uploadError } = await supabase.storage
+        .from('equipment-images')
+        .upload(objectPath, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from('equipment-images').getPublicUrl(objectPath);
+      const publicUrl = publicUrlData?.publicUrl;
+      if (!publicUrl) return null;
+      return { publicUrl, objectPath };
+    } catch (err: any) {
+      console.error('Facility image upload failed:', err);
+      toast({ title: 'Téléversement image échoué', description: "L'image n'a pas pu être envoyée. Elle ne sera pas enregistrée.", variant: 'destructive' });
+      return null;
+    }
+  };
+
+  const handleAddFacility = async () => {
+    if (!newFacility.name.trim() || !newFacility.address.trim() || !newFacility.size || !newFacility.yearBuilt) {
+      toast({ title: 'Champs requis', description: 'Veuillez compléter les champs obligatoires.', variant: 'destructive' });
       return;
     }
 
-    const facility: Facility = {
-      id: Date.now().toString(),
-      name: newFacility.name,
-      address: newFacility.address,
+    // 1) Créer le building pour obtenir l'ID
+    const { data: inserted, error } = await supabase
+      .from('buildings')
+      .insert([{ 
+        name: newFacility.name.trim(), 
+        address: newFacility.address.trim(),
+        type: newFacility.type,
+        size: Number(newFacility.size) || null,
+        year_built: Number(newFacility.yearBuilt) || null,
+        last_inspection: newFacility.lastInspection || null
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erreur création installation:', error);
+      toast({ title: 'Erreur', description: "Impossible de créer l'installation.", variant: 'destructive' });
+      return;
+    }
+
+    // 2) Uploader l'image avec chemin déterministe et mettre à jour la ligne avec le chemin objet
+    let createdImagePublicUrl: string | undefined;
+    if (selectedImageFile) {
+      const uploaded = await uploadFacilityImage(selectedImageFile, inserted.id);
+      if (uploaded) {
+        await supabase
+          .from('buildings')
+          .update({ image_url: uploaded.publicUrl })
+          .eq('id', inserted.id);
+        createdImagePublicUrl = uploaded.publicUrl;
+      }
+    }
+
+    const created: Facility = {
+      id: inserted.id,
+      name: inserted.name,
+      address: inserted.address || '',
       type: newFacility.type,
-      size: parseInt(newFacility.size),
+      size: Number(newFacility.size),
       equipmentCount: 0,
-      equipmentStatus: {
-        operational: 0,
-        maintenance: 0,
-        outOfOrder: 0
-      },
-      yearBuilt: parseInt(newFacility.yearBuilt),
-      lastInspection: newFacility.lastInspection
+      equipmentStatus: { operational: 0, maintenance: 0, outOfOrder: 0 },
+      yearBuilt: Number(newFacility.yearBuilt),
+      lastInspection: newFacility.lastInspection,
+      image: createdImagePublicUrl,
     };
 
-    setFacilities(prev => [...prev, facility]);
-    setNewFacility({
-      name: '',
-      address: '',
-      type: 'factory',
-      size: '',
-      yearBuilt: '',
-      lastInspection: new Date().toISOString().split('T')[0]
-    });
+    setFacilities(prev => [created, ...prev]);
     setIsAddDialogOpen(false);
+    setNewFacility({ name: '', address: '', type: 'factory', size: '', yearBuilt: '', lastInspection: new Date().toISOString().split('T')[0] });
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    toast({ title: 'Installation ajoutée', description: `${created.name} a été ajoutée.` });
+  };
+  
+  const handleOpenEdit = (facility: Facility) => {
+    setEditingFacility({ ...facility });
+    setImagePreviewUrl(facility.image || null);
+    setSelectedImageFile(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateFacility = async () => {
+    if (!editingFacility) return;
+    const { id, name, address, type, size, yearBuilt, lastInspection } = editingFacility;
+    if (!name.trim()) {
+      toast({ title: 'Nom requis', description: 'Veuillez saisir un nom.', variant: 'destructive' });
+      return;
+    }
+
+    // Upload image sur chemin déterministe (remplace l'existante)
+    let imagePublicUrl: string | null = editingFacility.image || null;
+    if (selectedImageFile) {
+      const uploaded = await uploadFacilityImage(selectedImageFile, id);
+      if (uploaded) { imagePublicUrl = uploaded.publicUrl; }
+    }
+
+    const { error } = await supabase
+      .from('buildings')
+      .update({ 
+        name: name.trim(), 
+        address: (address || '').trim(),
+        image_url: imagePublicUrl ?? undefined,
+        type,
+        size: Number(size) || null,
+        year_built: Number(yearBuilt) || null,
+        last_inspection: lastInspection || null
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erreur mise à jour installation:', error);
+      toast({ title: 'Erreur', description: "Impossible de mettre à jour l'installation.", variant: 'destructive' });
+      return;
+    }
+
+    setFacilities(prev => prev.map(f => f.id === id ? { ...f, name, address, type, size, yearBuilt, lastInspection, image: imagePublicUrl || undefined } : f));
+    setIsEditDialogOpen(false);
+    setEditingFacility(null);
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    toast({ title: 'Installation mise à jour' });
+  };
+
+  const handleDeleteFacility = async (facility: Facility) => {
+    const confirmed = window.confirm(`Supprimer l'installation "${facility.name}" ?`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('buildings')
+      .delete()
+      .eq('id', facility.id);
+
+    if (error) {
+      console.error('Erreur suppression installation:', error);
+      toast({ title: 'Erreur', description: "Impossible de supprimer l'installation.", variant: 'destructive' });
+      return;
+    }
+
+    setFacilities(prev => prev.filter(f => f.id !== facility.id));
+    toast({ title: 'Installation supprimée' });
   };
   
   return (
@@ -226,9 +371,14 @@ const Facilities = () => {
               <div className="h-40 overflow-hidden bg-muted">
                 {facility.image ? (
                   <img 
-                    src={facility.image} 
-                    alt={facility.name} 
+                    src={facility.image}
+                    alt={facility.name}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error('Image chargée invalide pour installation:', facility.name, facility.image);
+                      e.currentTarget.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-primary/10">
@@ -240,9 +390,13 @@ const Facilities = () => {
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{facility.name}</CardTitle>
-                  <div className="px-2 py-1 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center">
-                    {getFacilityTypeIcon(facility.type)}
-                    <span className="ml-1">{getFacilityTypeName(facility.type)}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="px-2 py-1 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center">
+                      {getFacilityTypeIcon(facility.type)}
+                      <span className="ml-1">{getFacilityTypeName(facility.type)}</span>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleOpenEdit(facility)}>Modifier</Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleDeleteFacility(facility)}>Supprimer</Button>
                   </div>
                 </div>
               </CardHeader>
@@ -304,7 +458,7 @@ const Facilities = () => {
       </div>
 
       {/* Modal d'ajout d'installation */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) { setSelectedImageFile(null); setImagePreviewUrl(null); } }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -384,6 +538,26 @@ const Facilities = () => {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Photo (optionnel)</Label>
+              <div className="border rounded-md p-2 flex items-center gap-3">
+                <div className="w-24 h-16 bg-muted rounded overflow-hidden flex items-center justify-center">
+                  {imagePreviewUrl ? (
+                    <img src={imagePreviewUrl} alt="Aperçu" className="object-cover w-full h-full" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Aperçu</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                  <Button type="button" variant="outline" onClick={handleSelectImage} className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    {imagePreviewUrl ? 'Changer la photo' : 'Ajouter une photo'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Annuler
@@ -393,6 +567,112 @@ const Facilities = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* Modal d'édition d'installation */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) { setEditingFacility(null); } }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5" />
+              Modifier l'installation
+            </DialogTitle>
+          </DialogHeader>
+
+          {editingFacility && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nom de l'installation *</Label>
+                <Input
+                  id="edit-name"
+                  value={editingFacility.name}
+                  onChange={(e) => setEditingFacility(prev => prev ? { ...prev, name: e.target.value } : prev)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-address">Adresse *</Label>
+                <Textarea
+                  id="edit-address"
+                  rows={2}
+                  value={editingFacility.address}
+                  onChange={(e) => setEditingFacility(prev => prev ? { ...prev, address: e.target.value } : prev)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-type">Type d'installation</Label>
+                <Select value={editingFacility.type} onValueChange={(value: Facility['type']) => setEditingFacility(prev => prev ? { ...prev, type: value } : prev)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="factory">Usine</SelectItem>
+                    <SelectItem value="warehouse">Entrepôt</SelectItem>
+                    <SelectItem value="office">Bureaux</SelectItem>
+                    <SelectItem value="other">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-size">Superficie (m²) *</Label>
+                  <Input
+                    id="edit-size"
+                    type="number"
+                    value={editingFacility.size}
+                    onChange={(e) => setEditingFacility(prev => prev ? { ...prev, size: Number(e.target.value || 0) } : prev)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-yearBuilt">Année de construction *</Label>
+                  <Input
+                    id="edit-yearBuilt"
+                    type="number"
+                    value={editingFacility.yearBuilt}
+                    onChange={(e) => setEditingFacility(prev => prev ? { ...prev, yearBuilt: Number(e.target.value || 0) } : prev)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastInspection">Dernière inspection</Label>
+                <Input
+                  id="edit-lastInspection"
+                  type="date"
+                  value={editingFacility.lastInspection}
+                  onChange={(e) => setEditingFacility(prev => prev ? { ...prev, lastInspection: e.target.value } : prev)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Photo</Label>
+                <div className="border rounded-md p-2 flex items-center gap-3">
+                  <div className="w-24 h-16 bg-muted rounded overflow-hidden flex items-center justify-center">
+                    {imagePreviewUrl ? (
+                      <img src={imagePreviewUrl} alt="Aperçu" className="object-cover w-full h-full" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Aperçu</span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                    <Button type="button" variant="outline" onClick={handleSelectImage} className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      {imagePreviewUrl ? 'Changer la photo' : 'Ajouter une photo'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); setEditingFacility(null); setSelectedImageFile(null); setImagePreviewUrl(null); }}>Annuler</Button>
+                <Button onClick={handleUpdateFacility}>Enregistrer</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

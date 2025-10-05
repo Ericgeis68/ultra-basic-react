@@ -13,6 +13,7 @@ interface EquipmentGridViewProps {
   services?: Service[];
   locations?: Location[];
   onEquipmentClick: (equipment: Equipment) => void;
+  fadingIds?: Set<string>;
 }
 
 const EquipmentGridView: React.FC<EquipmentGridViewProps> = ({ 
@@ -21,12 +22,14 @@ const EquipmentGridView: React.FC<EquipmentGridViewProps> = ({
   buildings = [],
   services = [],
   locations = [],
-  onEquipmentClick 
+  onEquipmentClick,
+  fadingIds 
 }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
       {equipments.map((equipment) => (
-        <EquipmentCard
+        <div key={equipment.id} className={fadingIds?.has(equipment.id) ? 'transition-opacity duration-300 opacity-0' : ''}>
+          <EquipmentCard
           key={equipment.id}
           equipment={equipment}
           groups={groups}
@@ -34,7 +37,8 @@ const EquipmentGridView: React.FC<EquipmentGridViewProps> = ({
           services={services}
           locations={locations}
           onClick={onEquipmentClick}
-        />
+          />
+        </div>
       ))}
     </div>
   );

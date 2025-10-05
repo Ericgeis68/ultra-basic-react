@@ -79,6 +79,8 @@ const EquipmentPage: React.FC = () => {
   const [filterLoanStatus, setFilterLoanStatus] = useState<string>('all');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] = useState<Set<string>>(new Set());
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
 
   // Ouvrir automatiquement le scanner si le paramètre 'scan' est présent
   useEffect(() => {
@@ -258,7 +260,9 @@ const EquipmentPage: React.FC = () => {
     const locationMap = new Map(locations?.map(l => [l.id, l.name]));
     const groupMap = new Map(equipmentGroups?.map(g => [g.id, g.name]));
 
-    const enriched: EquipmentUI[] = enrichedEquipments.map(equipment => ({
+    const enriched: EquipmentUI[] = enrichedEquipments
+      .filter(e => !optimisticallyDeletedIds.has(e.id))
+      .map(equipment => ({
       ...equipment,
       buildingName: equipment.building_id ? buildingMap.get(equipment.building_id) : null,
       serviceName: equipment.service_id ? serviceMap.get(equipment.service_id) : null,
@@ -345,7 +349,7 @@ const EquipmentPage: React.FC = () => {
     filterType, filterInventory, filterLoanStatus, filterPurchaseDateFrom, filterPurchaseDateTo,
     filterServiceDateFrom, filterServiceDateTo, filterWarrantyFrom, filterWarrantyTo,
     filterPriceMin, filterPriceMax, filterHealthMin, filterHealthMax,
-    buildings, services, locations, equipmentGroups
+    buildings, services, locations, equipmentGroups, optimisticallyDeletedIds
   ]);
 
   const sortedEquipments = useMemo(() => {
@@ -737,11 +741,50 @@ const EquipmentPage: React.FC = () => {
 
   const handleDeleteEquipment = async (equipment: Equipment, shouldDeleteEmptyGroups: boolean = true) => {
     try {
-      await deleteEquipment(equipment.id, shouldDeleteEmptyGroups);
+      // Trigger fade-out first
+      setFadingIds(prev => {
+        const next = new Set(prev);
+        next.add(equipment.id);
+        return next;
+      });
+      // After 300ms, hide from list optimistically
+      setTimeout(() => {
+        setOptimisticallyDeletedIds(prev => {
+          const next = new Set(prev);
+          next.add(equipment.id);
+          return next;
+        });
+      }, 300);
+
+      // Close the detail view immediately for better UX
       handleCloseDetailView();
-      refetchEquipments();
+
+      await deleteEquipment(equipment.id, shouldDeleteEmptyGroups);
+      await refetchEquipments();
+      // Cleanup optimistic set after refetch
+      setOptimisticallyDeletedIds(prev => {
+        const next = new Set(prev);
+        next.delete(equipment.id);
+        return next;
+      });
+      setFadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(equipment.id);
+        return next;
+      });
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      // Revert optimistic removal on failure
+      setOptimisticallyDeletedIds(prev => {
+        const next = new Set(prev);
+        next.delete(equipment.id);
+        return next;
+      });
+      setFadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(equipment.id);
+        return next;
+      });
     }
   };
 
@@ -1035,6 +1078,7 @@ const EquipmentPage: React.FC = () => {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSortChange={handleSortChange}
+            fadingIds={fadingIds}
           />
         ) : (
           <EquipmentGridView
@@ -1044,6 +1088,7 @@ const EquipmentPage: React.FC = () => {
             services={services || []}
             locations={locations || []}
             onEquipmentClick={handleViewEquipment}
+            fadingIds={fadingIds}
           />
         )
       )}

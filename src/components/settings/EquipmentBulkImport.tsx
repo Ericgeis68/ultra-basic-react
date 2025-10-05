@@ -218,6 +218,23 @@ const EquipmentBulkImport = () => {
         });
       }
 
+      // Validation du type d'équipement
+      const validTypes = ['biomedical', 'technique'];
+      let normalizedEquipmentType: string | null = null;
+      if (equipment_type) {
+        const lower = equipment_type.toLowerCase().trim();
+        if (!validTypes.includes(lower)) {
+          errors.push({
+            line: lineNumber,
+            field: "Type d'équipement",
+            value: equipment_type,
+            error: `Type invalide. Valeurs autorisées: ${validTypes.join(', ')}`
+          });
+        } else {
+          normalizedEquipmentType = lower;
+        }
+      }
+
       // Validation du statut de prêt
       let loanStatusBoolean = false;
       // Validation de la santé (%)
@@ -425,6 +442,7 @@ const EquipmentBulkImport = () => {
       // Si pas d'erreurs pour cette ligne, ajouter l'équipement valide
       if (!errors.some(error => error.line === lineNumber)) {
         const validStatus = status && validStatuses.includes(status.toLowerCase()) ? status.toLowerCase() : 'operational';
+        const finalEquipmentType = normalizedEquipmentType || 'technique';
         
         const equipment = {
           name,
@@ -432,7 +450,7 @@ const EquipmentBulkImport = () => {
           manufacturer: manufacturer || null,
           supplier: supplier || null,
           description: description || null,
-          equipment_type: equipment_type || null,
+          equipment_type: finalEquipmentType,
           serial_number: serial_number || null,
           inventory_number: inventory_number || null,
           purchase_date: toISODate(purchase_date),
@@ -791,20 +809,42 @@ const EquipmentBulkImport = () => {
 
   const downloadEquipmentTemplateExcel = async () => {
     try {
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.aoa_to_sheet([EQUIPMENT_EXPORT_HEADERS_FR]);
-      worksheet['!cols'] = EQUIPMENT_EXPORT_HEADERS_FR.map((h) => ({ wch: Math.max(12, h.length + 2) }));
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Modèle');
-      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      // Récupérer les données de référence
+      const [buildingsRes, servicesRes, locationsRes, ufsRes, groupsRes] = await Promise.all([
+        supabase.from('buildings').select('id,name').order('name'),
+        supabase.from('services').select('id,name,building_id').order('name'),
+        supabase.from('locations').select('id,name,service_id').order('name'),
+        supabase.from('ufs').select('name').order('name'),
+        supabase.from('equipment_groups').select('name').order('name')
+      ]);
+
+      const buildings = buildingsRes.data || [];
+      const services = servicesRes.data || [];
+      const locations = locationsRes.data || [];
+      const ufs = (ufsRes.data || []) as { name: string }[];
+      const groups = (groupsRes.data || []) as { name: string }[];
+
+      // Importer et utiliser le générateur Excel avancé
+      const { generateEquipmentTemplateBuffer } = await import('@/lib/excel-advanced');
+      
+      // Générer le fichier Excel
+      const excelBuffer = await generateEquipmentTemplateBuffer(buildings, services, locations, ufs, groups);
+      
+      // Créer le blob et télécharger
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', 'modele_equipements.xlsx');
+      link.setAttribute('download', 'modele_equipements_avec_guide.xlsx');
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      toast({ 
+        title: 'Modèle téléchargé', 
+        description: 'Le modèle Excel avec listes déroulantes a été téléchargé avec succès' 
+      });
     } catch (error) {
       console.error('Erreur lors de la génération du modèle Excel:', error);
       toast({ title: 'Erreur', description: 'Impossible de générer le modèle Excel', variant: 'destructive' });

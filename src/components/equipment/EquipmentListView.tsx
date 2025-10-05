@@ -40,6 +40,7 @@ interface EquipmentListViewProps {
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   onSortChange: (column: string) => void;
+  fadingIds?: Set<string>;
 }
 
 const EquipmentListView: React.FC<EquipmentListViewProps> = ({ 
@@ -56,7 +57,8 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
   onOpenMaintenanceFromList,
   sortColumn,
   sortDirection,
-  onSortChange
+  onSortChange,
+  fadingIds
 }) => {
   const { listFields } = useEquipmentFieldVisibility();
 
@@ -226,7 +228,7 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
             const imageUrl = getImageUrlToDisplay(equipment);
             
             return (
-              <TableRow key={equipment.id}>
+              <TableRow key={equipment.id} className={fadingIds?.has(equipment.id) ? 'transition-opacity duration-300 opacity-0' : ''}>
                 <TableCell>
                   {imageUrl ? (
                     <img
