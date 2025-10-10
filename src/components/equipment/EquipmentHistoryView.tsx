@@ -1060,10 +1060,19 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
                 entry.field_name !== 'imageUrl'
               );
 
-              // Regrouper les modifications par timestamp et utilisateur
+              // Regrouper les modifications par date/heure (arrondi à la minute) et utilisateur
               const grouped: { [key: string]: typeof filteredEntries } = {};
               filteredEntries.forEach((entry) => {
-                const key = `${entry.changed_at}_${entry.changed_by || 'unknown'}`;
+                // Arrondir la date à la minute pour regrouper les modifications quasi-simultanées
+                const date = new Date(entry.changed_at);
+                const roundedDate = new Date(
+                  date.getFullYear(),
+                  date.getMonth(),
+                  date.getDate(),
+                  date.getHours(),
+                  date.getMinutes()
+                );
+                const key = `${roundedDate.toISOString()}_${entry.changed_by || 'unknown'}`;
                 if (!grouped[key]) {
                   grouped[key] = [];
                 }
