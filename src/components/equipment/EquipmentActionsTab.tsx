@@ -9,13 +9,13 @@ import { Document } from '@/types/document';
 import { Equipment } from '@/types/equipment';
 
 interface EquipmentActionsTabProps {
-  onCreateIntervention: () => void;
-  checkingOngoingIntervention: boolean;
-  showDocuments: boolean;
-  onToggleDocuments: (show: boolean) => void;
-  documentsLoading: boolean;
-  documentsError: Error | null;
-  equipmentDocuments: Document[];
+  onCreateIntervention?: () => void;
+  checkingOngoingIntervention?: boolean;
+  showDocuments?: boolean;
+  onToggleDocuments?: (show: boolean) => void;
+  documentsLoading?: boolean;
+  documentsError?: Error | null;
+  equipmentDocuments?: Document[];
   equipment: Equipment | null;
   currentUser?: any;
   autoOpenMaintenance?: boolean;
@@ -23,12 +23,12 @@ interface EquipmentActionsTabProps {
 
 const EquipmentActionsTab: React.FC<EquipmentActionsTabProps> = ({
   onCreateIntervention,
-  checkingOngoingIntervention,
-  showDocuments,
+  checkingOngoingIntervention = false,
+  showDocuments = false,
   onToggleDocuments,
-  documentsLoading,
-  documentsError,
-  equipmentDocuments,
+  documentsLoading = false,
+  documentsError = null,
+  equipmentDocuments = [],
   equipment,
   currentUser,
   autoOpenMaintenance = false
@@ -58,7 +58,7 @@ const EquipmentActionsTab: React.FC<EquipmentActionsTabProps> = ({
           variant="outline"
           className="h-16 md:h-20 flex flex-col items-center justify-center text-xs md:text-sm gap-2"
           onClick={onCreateIntervention}
-          disabled={checkingOngoingIntervention}
+          disabled={checkingOngoingIntervention || !onCreateIntervention}
         >
           {checkingOngoingIntervention ? (
             <Loader2 className="h-5 w-5 md:h-6 md:w-6 animate-spin" />
@@ -85,7 +85,7 @@ const EquipmentActionsTab: React.FC<EquipmentActionsTabProps> = ({
         <Button
           variant="outline"
           className="h-16 md:h-20 flex flex-col items-center justify-center text-xs md:text-sm gap-2"
-          onClick={() => onToggleDocuments(true)}
+          onClick={() => onToggleDocuments?.(true)}
         >
           <FileText className="h-5 w-5 md:h-6 md:w-6" />
           <span>Documents techniques</span>

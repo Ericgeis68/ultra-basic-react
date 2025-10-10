@@ -1023,24 +1023,21 @@ const EquipmentDetailView: React.FC<EquipmentDetailViewProps> = ({
               updateModificationFilter={updateModificationFilter}
               clearModificationFilters={clearModificationFilters}
               hasActiveModificationFilters={hasActiveModificationFilters}
+              buildings={buildings}
+              services={services}
+              locations={locations}
             />
 
             <EquipmentActionsTab
               equipment={equipment}
-              buildings={buildings}
-              services={services}
-              locations={locations}
-              equipmentGroups={groups}
-              loading={false}
-              error={null}
-              showQrCode={showQrCode}
-              isMobile={isMobile}
-              onToggleQrCode={() => setShowQrCode(!showQrCode)}
-              onPrintQRCode={handlePrintQRCode}
-              onDownloadQRCode={handleDownloadQRCode}
-              onEdit={handleEditEquipment}
-              onDelete={handleDeleteEquipment}
-              onSetCurrentTab={setCurrentTab}
+              onCreateIntervention={handleCreateIntervention}
+              checkingOngoingIntervention={checkingOngoingIntervention}
+              showDocuments={showDocuments}
+              onToggleDocuments={setShowDocuments}
+              documentsLoading={documentsLoading}
+              documentsError={documentsError}
+              equipmentDocuments={equipmentDocuments}
+              currentUser={user}
               autoOpenMaintenance={initialAction === 'maintenance'}
             />
           </Tabs>

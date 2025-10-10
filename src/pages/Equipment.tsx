@@ -95,7 +95,8 @@ const EquipmentPage: React.FC = () => {
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   // Sorting states
-  const [sortColumn, setSortColumn] = useState<EquipmentSortColumn | null>(null);
+  // Tri par défaut: nom d'équipement en ordre alphabétique
+  const [sortColumn, setSortColumn] = useState<EquipmentSortColumn | null>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Fetch Equipments
@@ -192,11 +193,31 @@ const EquipmentPage: React.FC = () => {
     return [...new Set(manufacturers)].sort();
   }, [enrichedEquipments]);
 
+  const [allUFs, setAllUFs] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    const loadUFs = async () => {
+      try {
+        const { data, error } = await supabase.from('ufs').select('name').order('name');
+        if (error) throw error;
+        const names = (data || []).map((u: any) => u.name).filter((n: any) => !!n);
+        if (active) setAllUFs(names);
+      } catch (e) {
+        // En cas d'erreur, ne pas bloquer l'écran; garder allUFs vide
+        console.warn('Chargement des UF échoué (non bloquant):', e);
+      }
+    };
+    loadUFs();
+    return () => { active = false; };
+  }, []);
+
   const uniqueUFs = useMemo(() => {
-    if (!enrichedEquipments) return [];
-    const ufs = enrichedEquipments.map(e => e.uf).filter((uf): uf is string => !!uf);
-    return [...new Set(ufs)].sort();
-  }, [enrichedEquipments]);
+    const fromEquipments = (enrichedEquipments || [])
+      .map(e => e.uf)
+      .filter((uf): uf is string => !!uf);
+    // Union des UF venant de la table et de celles présentes sur les équipements
+    return [...new Set([...(allUFs || []), ...fromEquipments])].sort();
+  }, [enrichedEquipments, allUFs]);
 
   const uniqueNames = useMemo(() => {
     if (!enrichedEquipments) return [];
@@ -913,8 +934,6 @@ const EquipmentPage: React.FC = () => {
             setFilterManufacturer={setFilterManufacturer}
             filterUF={filterUF}
             setFilterUF={setFilterUF}
-            filterType={filterType}
-            setFilterType={setFilterType}
             filterType={filterType}
             setFilterType={setFilterType}
             filterInventory={filterInventory}

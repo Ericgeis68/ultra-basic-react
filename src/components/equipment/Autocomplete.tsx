@@ -12,7 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// Removed ScrollArea in favor of native scrolling for better cross-device support
 
 interface AutocompleteProps extends React.ComponentPropsWithoutRef<typeof Input> {
   suggestions: string[];
@@ -54,12 +54,13 @@ export function Autocomplete({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onWheel={(e) => { e.stopPropagation(); }}
       >
         <Command>
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
-              <ScrollArea className="h-auto max-h-52">
+              <div className="max-h-52 overflow-auto touch-pan-y overscroll-contain">
                 {filteredSuggestions.map((suggestion) => (
                   <CommandItem
                     key={suggestion}
@@ -73,7 +74,7 @@ export function Autocomplete({
                     {suggestion}
                   </CommandItem>
                 ))}
-              </ScrollArea>
+              </div>
             </CommandGroup>
           </CommandList>
         </Command>

@@ -6,19 +6,19 @@ import { FileText, Download, Loader2, AlertTriangle, BookOpen } from 'lucide-rea
 import { Document } from '@/types/document';
 
 interface EquipmentDocumentsSectionProps {
-  showDocuments: boolean;
-  onToggleDocuments: (show: boolean) => void;
-  documentsLoading: boolean;
-  documentsError: Error | null;
-  equipmentDocuments: Document[];
+  showDocuments?: boolean;
+  onToggleDocuments?: (show: boolean) => void;
+  documentsLoading?: boolean;
+  documentsError?: Error | null;
+  equipmentDocuments?: Document[];
 }
 
 const EquipmentDocumentsSection: React.FC<EquipmentDocumentsSectionProps> = ({
-  showDocuments,
+  showDocuments = false,
   onToggleDocuments,
-  documentsLoading,
-  documentsError,
-  equipmentDocuments
+  documentsLoading = false,
+  documentsError = null,
+  equipmentDocuments = []
 }) => {
   if (!showDocuments) return null;
 
@@ -30,7 +30,7 @@ const EquipmentDocumentsSection: React.FC<EquipmentDocumentsSectionProps> = ({
           variant="outline"
           size="sm"
           className="text-xs"
-          onClick={() => onToggleDocuments(false)}
+          onClick={() => onToggleDocuments?.(false)}
         >
           Fermer
         </Button>

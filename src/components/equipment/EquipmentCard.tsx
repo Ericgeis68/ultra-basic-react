@@ -64,7 +64,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
   } : cardFields;
 
   // Options d'affichage conditionnelles pour l'impression
-  const showImages = isPrintPreview ? (printOptions?.includeImages !== false) : true;
+  const showImages = isPrintPreview ? (printOptions?.includeImages !== false) : (cardFields?.image !== false);
   const showStatus = effectiveFields.status === true;
   const showLoanStatus = isPrintPreview ? (printOptions?.includeLoanStatus !== false) : true;
   const showRelationships = false;
@@ -318,7 +318,26 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
           )}
         </div>
         <div className="flex flex-col gap-1 flex-shrink-0">
-          {showStatus && <EquipmentStatusBadge status={equipment.status} scaleFactor={scaleFactor} />}
+          {showStatus && (
+            isPrintPreview ? (
+              <span 
+                className="font-bold"
+                style={{ 
+                  fontSize: `${Math.round(12 * scaleFactor)}px`, 
+                  lineHeight: `${16 * scaleFactor}px`,
+                  color: equipment.status === 'operational' ? '#22c55e' : 
+                         equipment.status === 'maintenance' ? '#f59e0b' : 
+                         equipment.status === 'faulty' ? '#ef4444' : '#6b7280'
+                }}
+              >
+                {equipment.status === 'operational' ? 'Opérationnel' : 
+                 equipment.status === 'maintenance' ? 'En maintenance' : 
+                 equipment.status === 'faulty' ? 'En panne' : equipment.status}
+              </span>
+            ) : (
+              <EquipmentStatusBadge status={equipment.status} scaleFactor={scaleFactor} />
+            )
+          )}
           {showLoanStatus && equipment.loan_status && (
             <span 
               className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 whitespace-nowrap"

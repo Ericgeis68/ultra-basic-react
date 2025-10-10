@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
+// Removed ScrollArea in favor of native scrolling for better cross-device support
 
 export interface ComboboxOption {
   value: string
@@ -63,13 +63,13 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onWheel={(e) => { e.stopPropagation(); }}>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>{emptyPlaceholder}</CommandEmpty>
             <CommandGroup>
-              <ScrollArea className="h-auto max-h-72">
+              <div className="max-h-72 overflow-auto touch-pan-y overscroll-contain">
                 {options.map((option) => (
                   <CommandItem
                     key={option.value}
@@ -88,7 +88,7 @@ export function Combobox({
                     {option.label}
                   </CommandItem>
                 ))}
-              </ScrollArea>
+              </div>
             </CommandGroup>
           </CommandList>
         </Command>

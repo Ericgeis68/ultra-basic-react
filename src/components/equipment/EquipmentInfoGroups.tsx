@@ -90,16 +90,10 @@ const EquipmentInfoGroups: React.FC<EquipmentInfoGroupsProps> = ({
     computeNames();
   }, [equipment, equipmentGroups]);
 
-  // Calculer une description effective: description de l'équipement, sinon description du groupe associé
+  // Calculer une description effective: PRIORITÉ à la description du groupe associé
   useEffect(() => {
     const computeDescription = async () => {
-      const equipmentDesc = equipment?.description ? String(equipment.description).trim() : '';
-      if (equipmentDesc) {
-        setEffectiveDescription(equipmentDesc);
-        return;
-      }
-
-      // Sinon, récupérer une description depuis les groupes associés
+      // D'abord, chercher une description depuis les groupes associés (PRIORITÉ)
       const groupIds = equipment.associated_group_ids && equipment.associated_group_ids.length > 0
         ? equipment.associated_group_ids
         : await junctionTableManager.getGroupsForEquipment(equipment.id);
@@ -108,7 +102,14 @@ const EquipmentInfoGroups: React.FC<EquipmentInfoGroupsProps> = ({
         .filter(g => groupIds.includes(g.id))
         .find(g => g.description && String(g.description).trim().length > 0);
 
-      setEffectiveDescription(firstGroupWithDesc ? String(firstGroupWithDesc.description).trim() : '');
+      if (firstGroupWithDesc) {
+        setEffectiveDescription(String(firstGroupWithDesc.description).trim());
+        return;
+      }
+
+      // Sinon, utiliser la description de l'équipement (fallback)
+      const equipmentDesc = equipment?.description ? String(equipment.description).trim() : '';
+      setEffectiveDescription(equipmentDesc);
     };
     computeDescription();
   }, [equipment, equipmentGroups]);

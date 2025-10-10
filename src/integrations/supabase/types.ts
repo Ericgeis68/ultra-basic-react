@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
@@ -19,43 +19,61 @@ export type Database = {
           address: string | null
           created_at: string
           id: string
+          image_url: string | null
+          last_inspection: string | null
           name: string
+          size: number | null
+          type: string | null
           updated_at: string
+          year_built: number | null
         }
         Insert: {
           address?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
+          last_inspection?: string | null
           name: string
+          size?: number | null
+          type?: string | null
           updated_at?: string
+          year_built?: number | null
         }
         Update: {
           address?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
+          last_inspection?: string | null
           name?: string
+          size?: number | null
+          type?: string | null
           updated_at?: string
+          year_built?: number | null
         }
         Relationships: []
       }
       document_group_members: {
         Row: {
-          created_at: string
-          document_id: string | null
-          group_id: string | null
+          created_at: string | null
+          document_id: string
+          group_id: string
           id: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          document_id?: string | null
-          group_id?: string | null
+          created_at?: string | null
+          document_id: string
+          group_id: string
           id?: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          document_id?: string | null
-          group_id?: string | null
+          created_at?: string | null
+          document_id?: string
+          group_id?: string
           id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -76,55 +94,67 @@ export type Database = {
       }
       documents: {
         Row: {
-          category: string
-          created_at: string
+          category: string | null
+          createdat: string | null
           description: string | null
           equipment_ids: string[] | null
+          filename: string | null
+          filetype: string | null
           fileurl: string | null
           id: string
+          size: number | null
           title: string
-          updatedat: string
+          updatedat: string | null
         }
         Insert: {
-          category: string
-          created_at?: string
+          category?: string | null
+          createdat?: string | null
           description?: string | null
           equipment_ids?: string[] | null
+          filename?: string | null
+          filetype?: string | null
           fileurl?: string | null
           id?: string
+          size?: number | null
           title: string
-          updatedat?: string
+          updatedat?: string | null
         }
         Update: {
-          category?: string
-          created_at?: string
+          category?: string | null
+          createdat?: string | null
           description?: string | null
           equipment_ids?: string[] | null
+          filename?: string | null
+          filetype?: string | null
           fileurl?: string | null
           id?: string
+          size?: number | null
           title?: string
-          updatedat?: string
+          updatedat?: string | null
         }
         Relationships: []
       }
       equipment_group_members: {
         Row: {
-          created_at: string
-          equipment_id: string | null
-          group_id: string | null
+          created_at: string | null
+          equipment_id: string
+          group_id: string
           id: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          equipment_id?: string | null
-          group_id?: string | null
+          created_at?: string | null
+          equipment_id: string
+          group_id: string
           id?: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          equipment_id?: string | null
-          group_id?: string | null
+          created_at?: string | null
+          equipment_id?: string
+          group_id?: string
           id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -170,12 +200,41 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          equipment_id: string
+          field_name: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          equipment_id: string
+          field_name: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          equipment_id?: string
+          field_name?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Relationships: []
+      }
       equipments: {
         Row: {
           building_id: string | null
-          created_at: string
+          created_at: string | null
           date_mise_en_service: string | null
-          description: string | null
           health_percentage: number | null
           id: string
           image_url: string | null
@@ -184,23 +243,22 @@ export type Database = {
           location_id: string | null
           manufacturer: string | null
           model: string | null
+          modified_at: string | null
           name: string
           purchase_date: string | null
-          relationships: Json | null
+          purchase_price: number | null
           serial_number: string | null
           service_id: string | null
-          status: string
+          status: string | null
           supplier: string | null
-          tag_number: string | null
           uf: string | null
-          updated_at: string
+          updated_at: string | null
           warranty_expiry: string | null
         }
         Insert: {
           building_id?: string | null
-          created_at?: string
+          created_at?: string | null
           date_mise_en_service?: string | null
-          description?: string | null
           health_percentage?: number | null
           id?: string
           image_url?: string | null
@@ -209,23 +267,22 @@ export type Database = {
           location_id?: string | null
           manufacturer?: string | null
           model?: string | null
+          modified_at?: string | null
           name: string
           purchase_date?: string | null
-          relationships?: Json | null
+          purchase_price?: number | null
           serial_number?: string | null
           service_id?: string | null
-          status?: string
+          status?: string | null
           supplier?: string | null
-          tag_number?: string | null
           uf?: string | null
-          updated_at?: string
+          updated_at?: string | null
           warranty_expiry?: string | null
         }
         Update: {
           building_id?: string | null
-          created_at?: string
+          created_at?: string | null
           date_mise_en_service?: string | null
-          description?: string | null
           health_percentage?: number | null
           id?: string
           image_url?: string | null
@@ -234,66 +291,100 @@ export type Database = {
           location_id?: string | null
           manufacturer?: string | null
           model?: string | null
+          modified_at?: string | null
           name?: string
           purchase_date?: string | null
-          relationships?: Json | null
+          purchase_price?: number | null
           serial_number?: string | null
           service_id?: string | null
-          status?: string
+          status?: string | null
           supplier?: string | null
-          tag_number?: string | null
           uf?: string | null
-          updated_at?: string
+          updated_at?: string | null
           warranty_expiry?: string | null
-        }
-        Relationships: []
-      }
-      interventions: {
-        Row: {
-          assigned_to: string | null
-          created_at: string
-          description: string | null
-          end_date: string | null
-          equipment_id: string | null
-          id: string
-          priority: string
-          start_date: string | null
-          status: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          created_at?: string
-          description?: string | null
-          end_date?: string | null
-          equipment_id?: string | null
-          id?: string
-          priority?: string
-          start_date?: string | null
-          status?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          created_at?: string
-          description?: string | null
-          end_date?: string | null
-          equipment_id?: string | null
-          id?: string
-          priority?: string
-          start_date?: string | null
-          status?: string
-          title?: string
-          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "interventions_equipment_id_fkey"
-            columns: ["equipment_id"]
+            foreignKeyName: "equipments_building_id_fkey"
+            columns: ["building_id"]
             isOneToOne: false
-            referencedRelation: "equipments"
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interventions: {
+        Row: {
+          actions: string | null
+          completed_date: string | null
+          created_at: string
+          end_date: string | null
+          equipment_id: string | null
+          id: string
+          maintenance_id: string | null
+          parts: Json | null
+          scheduled_date: string
+          start_date: string | null
+          status: string | null
+          technician_history: Json | null
+          technicians: string[] | null
+          title: string | null
+          type: string
+        }
+        Insert: {
+          actions?: string | null
+          completed_date?: string | null
+          created_at?: string
+          end_date?: string | null
+          equipment_id?: string | null
+          id?: string
+          maintenance_id?: string | null
+          parts?: Json | null
+          scheduled_date: string
+          start_date?: string | null
+          status?: string | null
+          technician_history?: Json | null
+          technicians?: string[] | null
+          title?: string | null
+          type: string
+        }
+        Update: {
+          actions?: string | null
+          completed_date?: string | null
+          created_at?: string
+          end_date?: string | null
+          equipment_id?: string | null
+          id?: string
+          maintenance_id?: string | null
+          parts?: Json | null
+          scheduled_date?: string
+          start_date?: string | null
+          status?: string | null
+          technician_history?: Json | null
+          technicians?: string[] | null
+          title?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_maintenance"
+            columns: ["maintenance_id"]
+            isOneToOne: false
+            referencedRelation: "maintenances"
             referencedColumns: ["id"]
           },
         ]
@@ -333,53 +424,81 @@ export type Database = {
       maintenances: {
         Row: {
           assigned_technicians: string[] | null
-          created_at: string
+          created_at: string | null
+          created_by: string | null
           description: string | null
           equipment_id: string | null
           equipment_name: string | null
+          frequency_type: string
+          frequency_value: number | null
           id: string
+          last_completed_date: string | null
           next_due_date: string
-          notification_enabled: boolean
+          notes: string | null
+          notification_enabled: boolean | null
           notification_time_before_unit: string | null
           notification_time_before_value: number | null
           priority: string
+          selected_dates: Json | null
           status: string
           title: string
-          updated_at: string
+          type: string
+          updated_at: string | null
         }
         Insert: {
           assigned_technicians?: string[] | null
-          created_at?: string
+          created_at?: string | null
+          created_by?: string | null
           description?: string | null
           equipment_id?: string | null
           equipment_name?: string | null
+          frequency_type?: string
+          frequency_value?: number | null
           id?: string
+          last_completed_date?: string | null
           next_due_date: string
-          notification_enabled?: boolean
+          notes?: string | null
+          notification_enabled?: boolean | null
           notification_time_before_unit?: string | null
           notification_time_before_value?: number | null
           priority?: string
+          selected_dates?: Json | null
           status?: string
           title: string
-          updated_at?: string
+          type?: string
+          updated_at?: string | null
         }
         Update: {
           assigned_technicians?: string[] | null
-          created_at?: string
+          created_at?: string | null
+          created_by?: string | null
           description?: string | null
           equipment_id?: string | null
           equipment_name?: string | null
+          frequency_type?: string
+          frequency_value?: number | null
           id?: string
+          last_completed_date?: string | null
           next_due_date?: string
-          notification_enabled?: boolean
+          notes?: string | null
+          notification_enabled?: boolean | null
           notification_time_before_unit?: string | null
           notification_time_before_value?: number | null
           priority?: string
+          selected_dates?: Json | null
           status?: string
           title?: string
-          updated_at?: string
+          type?: string
+          updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "maintenances_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "maintenances_equipment_id_fkey"
             columns: ["equipment_id"]
@@ -391,22 +510,25 @@ export type Database = {
       }
       part_group_members: {
         Row: {
-          created_at: string
-          group_id: string | null
+          created_at: string | null
+          group_id: string
           id: string
-          part_id: string | null
+          part_id: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          group_id?: string | null
+          created_at?: string | null
+          group_id: string
           id?: string
-          part_id?: string | null
+          part_id: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          group_id?: string | null
+          created_at?: string | null
+          group_id?: string
           id?: string
-          part_id?: string | null
+          part_id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -427,36 +549,60 @@ export type Database = {
       }
       parts: {
         Row: {
+          category: string | null
           created_at: string
           description: string | null
+          equipment_ids: string[] | null
+          group_ids: string[] | null
           id: string
+          image: string | null
+          last_restock_date: string | null
+          location: string | null
+          min_quantity: number
           name: string
-          quantity: number | null
-          reference: string | null
+          price: number | null
+          quantity: number
+          reference: string
           supplier: string | null
-          unit_price: number | null
+          unit: string | null
           updated_at: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           description?: string | null
+          equipment_ids?: string[] | null
+          group_ids?: string[] | null
           id?: string
+          image?: string | null
+          last_restock_date?: string | null
+          location?: string | null
+          min_quantity?: number
           name: string
-          quantity?: number | null
-          reference?: string | null
+          price?: number | null
+          quantity?: number
+          reference: string
           supplier?: string | null
-          unit_price?: number | null
+          unit?: string | null
           updated_at?: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           description?: string | null
+          equipment_ids?: string[] | null
+          group_ids?: string[] | null
           id?: string
+          image?: string | null
+          last_restock_date?: string | null
+          location?: string | null
+          min_quantity?: number
           name?: string
-          quantity?: number | null
-          reference?: string | null
+          price?: number | null
+          quantity?: number
+          reference?: string
           supplier?: string | null
-          unit_price?: number | null
+          unit?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -493,24 +639,57 @@ export type Database = {
           },
         ]
       }
+      staff_members: {
+        Row: {
+          avatar_url: string | null
+          certifications: Json | null
+          contact_info: string | null
+          created_at: string
+          id: string
+          name: string
+          role: string | null
+          specialization: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          certifications?: Json | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          role?: string | null
+          specialization?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          certifications?: Json | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          role?: string | null
+          specialization?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ufs: {
         Row: {
           created_at: string
-          description: string | null
           id: string
           name: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          description?: string | null
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          description?: string | null
           id?: string
           name?: string
           updated_at?: string
@@ -526,8 +705,9 @@ export type Database = {
           is_completed: boolean
           is_read: boolean
           persistent: boolean
-          recipients: string[] | null
-          reminder_time: number
+          priority: string
+          recipients: Json | null
+          reminder_time: number | null
           scheduled_date: string
           title: string
           updated_at: string
@@ -541,8 +721,9 @@ export type Database = {
           is_completed?: boolean
           is_read?: boolean
           persistent?: boolean
-          recipients?: string[] | null
-          reminder_time?: number
+          priority?: string
+          recipients?: Json | null
+          reminder_time?: number | null
           scheduled_date: string
           title: string
           updated_at?: string
@@ -556,8 +737,9 @@ export type Database = {
           is_completed?: boolean
           is_read?: boolean
           persistent?: boolean
-          recipients?: string[] | null
-          reminder_time?: number
+          priority?: string
+          recipients?: Json | null
+          reminder_time?: number | null
           scheduled_date?: string
           title?: string
           updated_at?: string
@@ -567,10 +749,13 @@ export type Database = {
       }
       users: {
         Row: {
+          avatar_url: string | null
           contact_info: string | null
           created_at: string
+          dark_mode: boolean | null
           full_name: string
           id: string
+          menu_preferences: Json
           password: string
           role: string
           specialization: string | null
@@ -578,21 +763,27 @@ export type Database = {
           username: string
         }
         Insert: {
+          avatar_url?: string | null
           contact_info?: string | null
           created_at?: string
+          dark_mode?: boolean | null
           full_name: string
           id?: string
+          menu_preferences?: Json
           password: string
-          role: string
+          role?: string
           specialization?: string | null
           updated_at?: string
           username: string
         }
         Update: {
+          avatar_url?: string | null
           contact_info?: string | null
           created_at?: string
+          dark_mode?: boolean | null
           full_name?: string
           id?: string
+          menu_preferences?: Json
           password?: string
           role?: string
           specialization?: string | null
@@ -606,7 +797,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_next_due_date: {
+        Args: { freq_type: string; freq_value?: number; last_date: string }
+        Returns: string
+      }
+      is_recipient: {
+        Args: {
+          original_user_id: string
+          recipients_list: Json
+          user_id_check: string
+        }
+        Returns: boolean
+      }
+      log_equipment_change: {
+        Args: {
+          p_changed_by?: string
+          p_equipment_id: string
+          p_field_name: string
+          p_new_value?: Json
+          p_old_value?: Json
+        }
+        Returns: undefined
+      }
+      update_equipment_group_relations_after_tables_exist: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      validate_technician_history: {
+        Args: { history: Json }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

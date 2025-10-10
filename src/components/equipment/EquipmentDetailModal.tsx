@@ -430,20 +430,14 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
       if (!currentGroupIds.includes(groupId)) {
         handleInputChange('associated_group_ids', [...currentGroupIds, groupId]);
       }
-      // Auto-fill description from group if empty
-      if (!formData.description || formData.description.trim() === '') {
-        const selectedGroup = equipmentGroups.find(g => g.id === groupId);
-        if (selectedGroup && selectedGroup.description) {
-          handleInputChange('description', selectedGroup.description);
-        }
-      } else {
-        const selectedGroup = equipmentGroups.find(g => g.id === groupId);
-        if (selectedGroup && selectedGroup.description && selectedGroup.description.trim() !== '') {
-          toast({
-            title: "Conflit de description",
-            description: "Une description existe déjà pour l'équipement et une description est aussi définie au niveau du groupe. La description de l'équipement sera conservée.",
-          });
-        }
+      // Remplacer la description par celle du groupe (priorité au groupe)
+      const selectedGroup = equipmentGroups.find(g => g.id === groupId);
+      if (selectedGroup && selectedGroup.description && selectedGroup.description.trim() !== '') {
+        handleInputChange('description', selectedGroup.description);
+        toast({
+          title: "Description mise à jour",
+          description: "La description du groupe a été appliquée à l'équipement. La description précédente a été remplacée.",
+        });
       }
     } else {
       handleInputChange('associated_group_ids', currentGroupIds.filter(id => id !== groupId));

@@ -184,7 +184,7 @@ const RelatedEquipmentPanel: React.FC<RelatedEquipmentPanelProps> = ({
               </SelectTrigger>
               <SelectContent>
                 {filteredEquipment.length === 0 ? (
-                  <SelectItem value="" disabled>Aucun équipement trouvé</SelectItem>
+                  <SelectItem value="none" disabled>Aucun équipement trouvé</SelectItem>
                 ) : (
                   filteredEquipment.map(equipment => (
                     <SelectItem key={equipment.id} value={equipment.id}>

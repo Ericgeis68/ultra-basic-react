@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -29,7 +30,7 @@ interface Facility {
   id: string;
   name: string;
   address: string;
-  type: 'factory' | 'office' | 'warehouse' | 'other';
+  type: 'factory' | 'office' | 'warehouse' | 'other' | 'logistics' | 'administrative' | 'hosting';
   size: number; // en m²
   equipmentCount: number;
   equipmentStatus: {
@@ -47,9 +48,21 @@ interface Facility {
 const Facilities = () => {
   const { toast } = useToast();
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [equipmentStatsByBuilding, setEquipmentStatsByBuilding] = useState<Record<string, { total: number; operational: number; maintenance: number; outOfOrder: number; }>>({});
   // Charger les installations depuis la table `buildings`
   useEffect(() => {
     const fetchBuildings = async () => {
+      // Migration automatique des anciens types vers les nouveaux
+      try {
+        // factory -> logistics, warehouse -> logistics, office -> administrative
+        await supabase.from('buildings').update({ type: 'logistics' }).eq('type', 'factory');
+        await supabase.from('buildings').update({ type: 'logistics' }).eq('type', 'warehouse');
+        await supabase.from('buildings').update({ type: 'administrative' }).eq('type', 'office');
+        // aucun ancien type pour hosting, pas de migration nécessaire
+      } catch (e) {
+        console.warn('Migration types échouée (non bloquant):', e);
+      }
+
       const { data, error } = await supabase
         .from('buildings')
         .select('id, name, address, image_url, type, size, year_built, last_inspection, created_at, updated_at')
@@ -77,46 +90,125 @@ const Facilities = () => {
         };
       });
 
-      setFacilities(mapped);
+    setFacilities(mapped);
+    // Une fois les bâtiments chargés, rafraîchir les stats équipements
+    await fetchEquipmentStats();
     };
 
     fetchBuildings();
   }, [toast]);
 
-  // Charger les stats équipements par bâtiment pour refléter l'application
-  useEffect(() => {
-    const fetchEquipmentStats = async () => {
-      const { data, error } = await supabase
-        .from('equipments')
-        .select('id, building_id, status');
+  // Charger et synchroniser les stats équipements par bâtiment
+  const fetchEquipmentStats = React.useCallback(async () => {
+    const { data, error } = await supabase
+      .from('equipments')
+      .select('id, building_id, status');
 
-      if (error) {
-        console.error('Erreur chargement équipements:', error);
+    if (error) {
+      console.error('Erreur chargement équipements:', error);
+      return;
+    }
+
+    const byBuilding: Record<string, { total: number; operational: number; maintenance: number; outOfOrder: number; }> = {};
+    (data || []).forEach((e: any) => {
+      const bId = e.building_id as string | null;
+      if (!bId) return;
+      if (!byBuilding[bId]) {
+        byBuilding[bId] = { total: 0, operational: 0, maintenance: 0, outOfOrder: 0 };
+      }
+      byBuilding[bId].total += 1;
+
+      // Statuts stricts alignés avec l'application
+      const status = (e.status || '').toString().toLowerCase().trim();
+      if (status === 'operational') byBuilding[bId].operational += 1;
+      if (status === 'maintenance') byBuilding[bId].maintenance += 1;
+      if (status === 'faulty') byBuilding[bId].outOfOrder += 1;
+      // Ne pas sur-compter les statuts inconnus
+    });
+
+    setEquipmentStatsByBuilding(byBuilding);
+  }, [setFacilities]);
+
+  useEffect(() => {
+    fetchEquipmentStats();
+    // Abonnement temps réel pour rester synchronisé
+    const channel = supabase
+      .channel('equipments-stats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipments' }, () => {
+        fetchEquipmentStats();
+      })
+      .subscribe();
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [fetchEquipmentStats]);
+
+  // Appliquer les stats calculées aux installations lorsque l'un ou l'autre change
+  useEffect(() => {
+    if (!facilities || Object.keys(equipmentStatsByBuilding).length === 0) {
+      // Si pas de stats, mettre à zéro par défaut
+      setFacilities(prev => prev.map(f => ({
+        ...f,
+        equipmentCount: 0,
+        equipmentStatus: { operational: 0, maintenance: 0, outOfOrder: 0 }
+      })));
+      return;
+    }
+    setFacilities(prev => prev.map(f => {
+      const agg = equipmentStatsByBuilding[f.id];
+      if (!agg) return { ...f, equipmentCount: 0, equipmentStatus: { operational: 0, maintenance: 0, outOfOrder: 0 } };
+      return {
+        ...f,
+        equipmentCount: agg.total,
+        equipmentStatus: { operational: agg.operational, maintenance: agg.maintenance, outOfOrder: agg.outOfOrder }
+      };
+    }));
+  }, [equipmentStatsByBuilding]);
+
+  // Charger compteurs services et locaux par bâtiment
+  useEffect(() => {
+    const fetchServiceAndLocationCounts = async () => {
+      // Services: comptage direct par building_id
+      const { data: servicesData, error: svcErr } = await supabase
+        .from('services')
+        .select('id, building_id');
+      if (svcErr) {
+        console.error('Erreur chargement services:', svcErr);
         return;
       }
-
-      const byBuilding: Record<string, { total: number; operational: number; maintenance: number; outOfOrder: number; }> = {};
-      (data || []).forEach((e: any) => {
-        const bId = e.building_id as string | null;
-        if (!bId) return;
-        if (!byBuilding[bId]) {
-          byBuilding[bId] = { total: 0, operational: 0, maintenance: 0, outOfOrder: 0 };
+      const newServiceCount: Record<string, number> = {};
+      const serviceToBuilding: Record<string, string | null> = {};
+      (servicesData || []).forEach((s: any) => {
+        const bId = (s.building_id as string | null) || null;
+        serviceToBuilding[s.id as string] = bId;
+        if (bId) {
+          newServiceCount[bId] = (newServiceCount[bId] || 0) + 1;
         }
-        byBuilding[bId].total += 1;
-        const status = (e.status || '').toString().toLowerCase();
-        if (status.includes('oper') || status === 'operational' || status === 'ok') byBuilding[bId].operational += 1;
-        else if (status.includes('maint') || status === 'maintenance' || status === 'in_maintenance') byBuilding[bId].maintenance += 1;
-        else byBuilding[bId].outOfOrder += 1;
       });
 
-      setFacilities(prev => prev.map(f => {
-        const agg = byBuilding[f.id];
-        if (!agg) return { ...f, equipmentCount: 0, equipmentStatus: { operational: 0, maintenance: 0, outOfOrder: 0 } };
-        return { ...f, equipmentCount: agg.total, equipmentStatus: { operational: agg.operational, maintenance: agg.maintenance, outOfOrder: agg.outOfOrder } };
-      }));
+      // Locaux: comptage par service, puis remontée au bâtiment du service
+      const { data: locationsData, error: locErr } = await supabase
+        .from('locations')
+        .select('id, service_id');
+      if (locErr) {
+        console.error('Erreur chargement locaux:', locErr);
+        setServiceCountByBuilding(newServiceCount);
+        return;
+      }
+      const newLocationCount: Record<string, number> = {};
+      (locationsData || []).forEach((l: any) => {
+        const svcId = (l.service_id as string | null) || null;
+        if (!svcId) return;
+        const bId = serviceToBuilding[svcId] || null;
+        if (!bId) return;
+        newLocationCount[bId] = (newLocationCount[bId] || 0) + 1;
+      });
+
+      setServiceCountByBuilding(newServiceCount);
+      setLocationCountByBuilding(newLocationCount);
     };
 
-    fetchEquipmentStats();
+    fetchServiceAndLocationCounts();
   }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -124,7 +216,7 @@ const Facilities = () => {
   const [newFacility, setNewFacility] = useState({
     name: '',
     address: '',
-    type: 'factory' as Facility['type'],
+    type: 'logistics' as Facility['type'],
     size: '',
     yearBuilt: '',
     lastInspection: new Date().toISOString().split('T')[0]
@@ -134,6 +226,9 @@ const Facilities = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
+  // Compteurs services/locaux par bâtiment
+  const [serviceCountByBuilding, setServiceCountByBuilding] = useState<Record<string, number>>({});
+  const [locationCountByBuilding, setLocationCountByBuilding] = useState<Record<string, number>>({});
   
   const filteredFacilities = facilities.filter(facility => 
     facility.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -142,12 +237,12 @@ const Facilities = () => {
   
   const getFacilityTypeIcon = (type: Facility['type']) => {
     switch (type) {
-      case 'factory':
+      case 'logistics':
         return <Factory className="h-5 w-5 text-blue-500" />;
-      case 'warehouse':
-        return <Building className="h-5 w-5 text-amber-500" />;
-      case 'office':
+      case 'administrative':
         return <FileText className="h-5 w-5 text-green-500" />;
+      case 'hosting':
+        return <Building className="h-5 w-5 text-purple-500" />;
       default:
         return <Building className="h-5 w-5 text-gray-500" />;
     }
@@ -155,12 +250,12 @@ const Facilities = () => {
   
   const getFacilityTypeName = (type: Facility['type']) => {
     switch (type) {
-      case 'factory':
-        return 'Usine';
-      case 'warehouse':
-        return 'Entrepôt';
-      case 'office':
-        return 'Bureaux';
+      case 'logistics':
+        return 'Logistique';
+      case 'administrative':
+        return 'Administratif';
+      case 'hosting':
+        return 'Hébergement';
       default:
         return 'Autre';
     }
@@ -197,6 +292,31 @@ const Facilities = () => {
       console.error('Facility image upload failed:', err);
       toast({ title: 'Téléversement image échoué', description: "L'image n'a pas pu être envoyée. Elle ne sera pas enregistrée.", variant: 'destructive' });
       return null;
+    }
+  };
+
+  const deleteFacilityImageFiles = async (buildingId: string, imageUrl?: string | null) => {
+    try {
+      // Tentative de suppression via chemins déterministes
+      const candidateExts = ['jpg','jpeg','png','webp','gif'];
+      const candidatePaths = candidateExts.map(ext => `${buildingId}.${ext}`);
+      await supabase.storage.from('buildings').remove(candidatePaths);
+
+      // Si on a une URL publique existante, tenter de supprimer précisément ce fichier aussi
+      if (imageUrl && typeof imageUrl === 'string') {
+        // Chercher le chemin après le préfixe public du bucket
+        const marker = '/storage/v1/object/public/buildings/';
+        const idx = imageUrl.indexOf(marker);
+        if (idx !== -1) {
+          const objectPath = imageUrl.substring(idx + marker.length).split('?')[0];
+          if (objectPath) {
+            await supabase.storage.from('buildings').remove([objectPath]);
+          }
+        }
+      }
+    } catch (e) {
+      // Non bloquant: si la suppression échoue, on continue tout de même
+      console.warn('Suppression image storage échouée (non bloquant):', e);
     }
   };
 
@@ -254,7 +374,7 @@ const Facilities = () => {
 
     setFacilities(prev => [created, ...prev]);
     setIsAddDialogOpen(false);
-    setNewFacility({ name: '', address: '', type: 'factory', size: '', yearBuilt: '', lastInspection: new Date().toISOString().split('T')[0] });
+    setNewFacility({ name: '', address: '', type: 'logistics', size: '', yearBuilt: '', lastInspection: new Date().toISOString().split('T')[0] });
     setSelectedImageFile(null);
     setImagePreviewUrl(null);
     toast({ title: 'Installation ajoutée', description: `${created.name} a été ajoutée.` });
@@ -287,7 +407,8 @@ const Facilities = () => {
       .update({ 
         name: name.trim(), 
         address: (address || '').trim(),
-        image_url: imagePublicUrl ?? undefined,
+        // Si imagePublicUrl est null, on efface la photo en base
+        image_url: imagePublicUrl,
         type,
         size: Number(size) || null,
         year_built: Number(yearBuilt) || null,
@@ -353,14 +474,14 @@ const Facilities = () => {
       <Tabs defaultValue="all" className="mb-6" value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">Toutes</TabsTrigger>
-          <TabsTrigger value="factory">Usines</TabsTrigger>
-          <TabsTrigger value="warehouse">Entrepôts</TabsTrigger>
-          <TabsTrigger value="office">Bureaux</TabsTrigger>
+          <TabsTrigger value="logistics">Logistique</TabsTrigger>
+          <TabsTrigger value="administrative">Administratif</TabsTrigger>
+          <TabsTrigger value="hosting">Hébergement</TabsTrigger>
           <TabsTrigger value="other">Autres</TabsTrigger>
         </TabsList>
       </Tabs>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredFacilities.length === 0 ? (
           <div className="col-span-full text-center py-10 text-muted-foreground">
             Aucune installation trouvée
@@ -368,7 +489,7 @@ const Facilities = () => {
         ) : (
           filteredFacilities.map((facility) => (
             <Card key={facility.id} className="overflow-hidden">
-              <div className="h-40 overflow-hidden bg-muted">
+              <div className="h-40 overflow-hidden bg-muted flex items-center justify-center">
                 {facility.image ? (
                   <img 
                     src={facility.image}
@@ -388,15 +509,20 @@ const Facilities = () => {
               </div>
               
               <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{facility.name}</CardTitle>
-                  <div className="flex items-center gap-2">
+                <div className="flex justify-between items-start gap-2">
+                  <div>
+                    <CardTitle className="text-lg">{facility.name}</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end max-w-full">
                     <div className="px-2 py-1 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center">
                       {getFacilityTypeIcon(facility.type)}
                       <span className="ml-1">{getFacilityTypeName(facility.type)}</span>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => handleOpenEdit(facility)}>Modifier</Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeleteFacility(facility)}>Supprimer</Button>
+                    <Link to={`/facilities/${facility.id}`} className="block">
+                      <Button size="sm" variant="outline" className="whitespace-nowrap">Détails</Button>
+                    </Link>
+                    <Button size="sm" variant="outline" className="whitespace-nowrap" onClick={() => handleOpenEdit(facility)}>Modifier</Button>
+                    <Button size="sm" variant="destructive" className="whitespace-nowrap" onClick={() => handleDeleteFacility(facility)}>Supprimer</Button>
                   </div>
                 </div>
               </CardHeader>
@@ -408,7 +534,7 @@ const Facilities = () => {
                     <span>{facility.address}</span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
                     <div>
                       <p className="text-xs text-muted-foreground">Superficie</p>
                       <p className="font-medium">{facility.size.toLocaleString()} m²</p>
@@ -427,6 +553,14 @@ const Facilities = () => {
                       <p className="text-xs text-muted-foreground">Équipements</p>
                       <p className="font-medium">{facility.equipmentCount}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Services</p>
+                      <p className="font-medium">{(serviceCountByBuilding[facility.id] || 0).toLocaleString('fr-FR')}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Locaux</p>
+                      <p className="font-medium">{(locationCountByBuilding[facility.id] || 0).toLocaleString('fr-FR')}</p>
+                    </div>
                   </div>
                   
                   <div className="pt-2">
@@ -439,7 +573,7 @@ const Facilities = () => {
                         {facility.equipmentStatus.maintenance} en maintenance
                       </div>
                       <div className="px-2 py-1 rounded-md bg-red-100 text-red-800 text-xs">
-                        {facility.equipmentStatus.outOfOrder} hors service
+                        {facility.equipmentStatus.outOfOrder} en panne
                       </div>
                     </div>
                   </div>
@@ -496,9 +630,9 @@ const Facilities = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="factory">Usine</SelectItem>
-                  <SelectItem value="warehouse">Entrepôt</SelectItem>
-                  <SelectItem value="office">Bureaux</SelectItem>
+                  <SelectItem value="logistics">Logistique</SelectItem>
+                  <SelectItem value="administrative">Administratif</SelectItem>
+                  <SelectItem value="hosting">Hébergement</SelectItem>
                   <SelectItem value="other">Autre</SelectItem>
                 </SelectContent>
               </Select>
@@ -554,6 +688,16 @@ const Facilities = () => {
                     <Upload className="h-4 w-4" />
                     {imagePreviewUrl ? 'Changer la photo' : 'Ajouter une photo'}
                   </Button>
+                  {imagePreviewUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => { setImagePreviewUrl(null); setSelectedImageFile(null); setEditingFacility(prev => prev ? { ...prev, image: undefined } : prev); }}
+                      className="ml-2 text-red-600 hover:text-red-700"
+                    >
+                      Supprimer la photo
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -607,9 +751,9 @@ const Facilities = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="factory">Usine</SelectItem>
-                    <SelectItem value="warehouse">Entrepôt</SelectItem>
-                    <SelectItem value="office">Bureaux</SelectItem>
+                    <SelectItem value="logistics">Logistique</SelectItem>
+                    <SelectItem value="administrative">Administratif</SelectItem>
+                    <SelectItem value="hosting">Hébergement</SelectItem>
                     <SelectItem value="other">Autre</SelectItem>
                   </SelectContent>
                 </Select>
@@ -634,6 +778,18 @@ const Facilities = () => {
                     value={editingFacility.yearBuilt}
                     onChange={(e) => setEditingFacility(prev => prev ? { ...prev, yearBuilt: Number(e.target.value || 0) } : prev)}
                   />
+                </div>
+              </div>
+
+              {/* Informations en lecture seule (dépendent de la base) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Services (lecture seule)</Label>
+                  <Input value={(serviceCountByBuilding[editingFacility.id] || 0).toLocaleString('fr-FR')} readOnly />
+                </div>
+                <div className="space-y-1">
+                  <Label>Locaux (lecture seule)</Label>
+                  <Input value={(locationCountByBuilding[editingFacility.id] || 0).toLocaleString('fr-FR')} readOnly />
                 </div>
               </div>
 
@@ -663,6 +819,35 @@ const Facilities = () => {
                       <Upload className="h-4 w-4" />
                       {imagePreviewUrl ? 'Changer la photo' : 'Ajouter une photo'}
                     </Button>
+                    {imagePreviewUrl && editingFacility && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={async () => {
+                          const id = editingFacility.id;
+                          const currentUrl = editingFacility.image || null;
+                          await deleteFacilityImageFiles(id, currentUrl);
+                          const { error } = await supabase
+                            .from('buildings')
+                            .update({ image_url: null })
+                            .eq('id', id);
+                          if (error) {
+                            console.error('Erreur suppression image en base:', error);
+                            toast({ title: 'Erreur', description: "Impossible de supprimer la photo.", variant: 'destructive' });
+                            return;
+                          }
+                          // Mettre à jour l'état local
+                          setFacilities(prev => prev.map(f => f.id === id ? { ...f, image: undefined } : f));
+                          setEditingFacility(prev => prev ? { ...prev, image: undefined } : prev);
+                          setSelectedImageFile(null);
+                          setImagePreviewUrl(null);
+                          toast({ title: 'Photo supprimée' });
+                        }}
+                        className="ml-2 text-red-600 hover:text-red-700"
+                      >
+                        Supprimer la photo
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

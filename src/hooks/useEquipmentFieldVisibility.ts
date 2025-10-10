@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 interface EquipmentFieldVisibilitySettings {
   card: {
+    image: boolean;
     manufacturer: boolean;
     model: boolean;
     uf: boolean;
@@ -21,6 +22,7 @@ interface EquipmentFieldVisibilitySettings {
     loan_status: boolean;
   };
   list: {
+    image: boolean;
     manufacturer: boolean;
     model: boolean;
     uf: boolean;
@@ -43,6 +45,7 @@ interface EquipmentFieldVisibilitySettings {
 
 const defaultSettings: EquipmentFieldVisibilitySettings = {
   card: {
+    image: true,
     manufacturer: true,
     model: true,
     uf: true,
@@ -62,6 +65,7 @@ const defaultSettings: EquipmentFieldVisibilitySettings = {
     loan_status: true,
   },
   list: {
+    image: true,
     manufacturer: true,
     model: true,
     uf: true,

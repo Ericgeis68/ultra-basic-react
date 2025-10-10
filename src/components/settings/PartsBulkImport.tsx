@@ -316,6 +316,53 @@ const PartsBulkImport = () => {
     }
   };
 
+  const exportPartsToExcel = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('parts')
+        .select('name, reference, description, quantity, min_quantity, location, supplier, unit, price, last_restock_date')
+        .order('name');
+      if (error) throw error;
+
+      const headers = ['name','reference','description','quantity','min_quantity','location','supplier','unit','price','last_restock_date'];
+      const rows = (data || []).map(p => [
+        p.name || '',
+        p.reference || '',
+        p.description || '',
+        p.quantity ?? 0,
+        p.min_quantity ?? 0,
+        p.location || '',
+        p.supplier || '',
+        p.unit || '',
+        p.price ?? 0,
+        p.last_restock_date || ''
+      ]);
+
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const columnWidths = [
+        { wch: 20 }, { wch: 15 }, { wch: 40 }, { wch: 12 }, { wch: 12 },
+        { wch: 20 }, { wch: 25 }, { wch: 10 }, { wch: 12 }, { wch: 15 }
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pièces');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'pieces.xlsx');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error: any) {
+      console.error('Erreur export pièces Excel:', error);
+      toast({ title: 'Erreur', description: "Export Excel impossible", variant: 'destructive' });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -348,6 +395,14 @@ const PartsBulkImport = () => {
           >
             <Download className="h-4 w-4" />
             Télécharger le modèle CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={exportPartsToExcel}
+            className="flex items-center gap-2"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Exporter Excel
           </Button>
           <Button
             variant="outline"

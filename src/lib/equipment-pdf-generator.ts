@@ -53,6 +53,15 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'operational': return '#22c55e'; // green-500
+      case 'maintenance': return '#f59e0b'; // amber-500
+      case 'faulty': return '#ef4444'; // red-500
+      default: return '#6b7280'; // gray-500
+    }
+  };
+
   const getGroupNames = (equipment: Equipment) => {
     const groupIds = (equipment as any).associated_group_ids || [];
     if (!groupIds || groupIds.length === 0) {
@@ -221,7 +230,21 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
       }
 
       // Status
-      doc.text(getStatusText(equipment.status), xPos + 2, yPosition + 6);
+      const statusText = getStatusText(equipment.status);
+      const statusColor = getStatusColor(equipment.status);
+      
+      // Sauvegarder la couleur actuelle
+      const currentTextColor = doc.getTextColor();
+      
+      // Définir la couleur du statut avec taille normale
+      doc.setTextColor(statusColor);
+      doc.setFontSize(8); // Taille normale comme les autres champs
+      
+      doc.text(statusText, xPos + 2, yPosition + 6);
+      
+      // Restaurer la couleur par défaut
+      doc.setTextColor(currentTextColor);
+      
       xPos += adjustedWidths[colIndex++];
 
       // Loan Status
@@ -278,7 +301,24 @@ export const generateEquipmentsPDF = (data: EquipmentPrintData) => {
       doc.setFontSize(8);
 
       // Status
-      doc.text(`Statut: ${getStatusText(equipment.status)}`, xPos + 5, cardY);
+      const statusText = getStatusText(equipment.status);
+      const statusColor = getStatusColor(equipment.status);
+      
+      // Sauvegarder la couleur actuelle
+      const currentTextColor = doc.getTextColor();
+      
+      // Définir la couleur du statut et une taille plus grande
+      doc.setTextColor(statusColor);
+      doc.setFontSize(10); // Taille plus grande que le reste (8)
+      doc.setFont(undefined, 'bold');
+      
+      doc.text(`Statut: ${statusText}`, xPos + 5, cardY);
+      
+      // Restaurer la couleur et la taille par défaut
+      doc.setTextColor(currentTextColor);
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'normal');
+      
       cardY += 6;
 
       if (exportOptions.includeDetails && equipment.model) {

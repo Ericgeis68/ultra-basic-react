@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationBell } from './NotificationBell';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface NavbarProps {
   toggleSidebar: () => void;
@@ -23,6 +24,7 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, isCollapsed }) => {
   const { user, logout } = useAuth();
   const isMobile = useIsMobile();
+  const { settings } = useSettings();
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -43,10 +45,14 @@ const Navbar: React.FC<NavbarProps> = ({ toggleSidebar, isCollapsed }) => {
           </Button>
         )}
         <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-          {!isMobile && ( // Only show logo image on desktop
-            <img src="/logo.svg" alt="" className="h-6 w-6" />
+          {!isMobile && (
+            settings.branding.logoUrl ? (
+              <img src={settings.branding.logoUrl} alt="Logo" className="h-6 w-6" />
+            ) : (
+              <img src="/logo.svg" alt="" className="h-6 w-6" />
+            )
           )}
-          <span className="sr-only md:not-sr-only">GMAO MEYER</span>
+          <span className="sr-only md:not-sr-only">{settings.branding.appName || 'GMAO MEYER'}</span>
         </Link>
       </div>
       <div className="flex items-center gap-4">

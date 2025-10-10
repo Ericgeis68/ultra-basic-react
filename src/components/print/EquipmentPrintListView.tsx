@@ -75,10 +75,10 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'operational': return '#22c55e';
-      case 'maintenance': return '#f59e0b';
-      case 'faulty': return '#ef4444';
-      default: return '#6b7280';
+      case 'operational': return '#22c55e'; // green-500
+      case 'maintenance': return '#f59e0b'; // amber-500
+      case 'faulty': return '#ef4444'; // red-500
+      default: return '#6b7280'; // gray-500
     }
   };
 
@@ -112,7 +112,7 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
             <th className="print-th-name">Nom</th>
             {visibleColumns.model && <th className="print-th">Modèle</th>}
             {visibleColumns.manufacturer && <th className="print-th">Fabricant</th>}
-            {visibleColumns.status && <th className="print-th">Statut</th>}
+            {visibleColumns.status && <th className="print-th" style={{ minWidth: '120px' }}>Statut</th>}
             {visibleColumns.loanStatus && <th className="print-th">En prêt</th>}
             {visibleColumns.health && <th className="print-th">Santé</th>}
             {visibleColumns.uf && <th className="print-th">UF</th>}
@@ -153,68 +153,28 @@ const EquipmentPrintListView: React.FC<EquipmentPrintListViewProps> = ({
               )}
               {visibleColumns.status && (
                 <td className="print-td">
-                  <div 
-                    className="print-status-badge"
+                  <span 
                     style={{ 
-                      backgroundColor: getStatusColor(equipment.status),
-                      color: 'white',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      textAlign: 'center',
-                      display: 'inline-block'
+                      color: getStatusColor(equipment.status),
+                      fontSize: '10px' // Taille réduite comme les autres champs
                     }}
                   >
                     {getStatusText(equipment.status)}
-                  </div>
+                  </span>
                 </td>
               )}
               {visibleColumns.loanStatus && (
                 <td className="print-td">
-                  <div 
-                    className="print-loan-status-badge"
-                    style={{ 
-                      backgroundColor: equipment.loan_status ? '#f97316' : '#22c55e',
-                      color: 'white',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      textAlign: 'center',
-                      display: 'inline-block'
-                    }}
-                  >
+                  <span style={{ fontSize: '10px' }}>
                     {equipment.loan_status ? 'Oui' : 'Non'}
-                  </div>
+                  </span>
                 </td>
               )}
               {visibleColumns.health && (
                 <td className="print-td">
-                  <div className="print-health-container">
-                    <div 
-                      className="print-health-bar"
-                      style={{
-                        width: '100px',
-                        height: '8px',
-                        backgroundColor: '#e5e5e5',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <div 
-                        className="print-health-fill"
-                        style={{
-                          width: `${equipment.health_percentage || 0}%`,
-                          height: '100%',
-                          backgroundColor: equipment.health_percentage && equipment.health_percentage > 70 ? '#22c55e' : 
-                                         equipment.health_percentage && equipment.health_percentage > 40 ? '#f59e0b' : '#ef4444',
-                          transition: 'none'
-                        }}
-                      />
-                    </div>
-                    <span className="print-health-text">
-                      {equipment.health_percentage ? `${equipment.health_percentage}%` : 'N/A'}
-                    </span>
-                  </div>
+                  <span style={{ fontSize: '10px' }}>
+                    {equipment.health_percentage ? `${equipment.health_percentage}%` : 'N/A'}
+                  </span>
                 </td>
               )}
               {visibleColumns.uf && (

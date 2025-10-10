@@ -21,6 +21,8 @@ const UFManagement = () => {
   const [ufs, setUfs] = useState<UF[]>([]);
   const [loading, setLoading] = useState(false);
   const [duplicateDialog, setDuplicateDialog] = useState<DuplicateInfo | null>(null);
+  const [editingUFId, setEditingUFId] = useState<string | null>(null);
+  const [editingUFName, setEditingUFName] = useState<string>('');
 
   // File input ref
   const ufFileRef = useRef<HTMLInputElement>(null);
@@ -101,6 +103,58 @@ const UFManagement = () => {
     } catch (error: any) {
       console.error('Erreur suppression UF:', error);
       toast({ title: 'Erreur', description: "Impossible de supprimer l'UF.", variant: 'destructive' });
+    }
+  };
+
+  const startEditUF = (id: string, currentName: string) => {
+    setEditingUFId(id);
+    setEditingUFName(currentName);
+  };
+
+  const cancelEditUF = () => {
+    setEditingUFId(null);
+    setEditingUFName('');
+  };
+
+  const saveEditUF = async () => {
+    if (!editingUFId) return;
+    const newName = editingUFName.trim();
+    if (!newName) {
+      toast({ title: 'Nom requis', description: "Le nom de l'UF ne peut pas être vide.", variant: 'destructive' });
+      return;
+    }
+    // Vérifier doublon (autre UF avec même nom)
+    const exists = ufs.some(u => u.id !== editingUFId && u.name.toLowerCase() === newName.toLowerCase());
+    if (exists) {
+      toast({ title: 'Doublon', description: `Une UF nommée "${newName}" existe déjà.`, variant: 'destructive' });
+      return;
+    }
+    try {
+      setLoading(true);
+      const old = ufs.find(u => u.id === editingUFId)?.name || '';
+      // 1) Mettre à jour la table ufs
+      const { error: ufErr } = await supabase
+        .from('ufs')
+        .update({ name: newName })
+        .eq('id', editingUFId);
+      if (ufErr) throw ufErr;
+      // 2) Propager le nouveau nom aux équipements qui référencent l'ancien nom
+      if (old && old !== newName) {
+        const { error: eqErr } = await supabase
+          .from('equipments')
+          .update({ uf: newName })
+          .eq('uf', old);
+        if (eqErr) throw eqErr;
+      }
+      toast({ title: 'UF modifiée', description: `"${old}" est devenu "${newName}".` });
+      setEditingUFId(null);
+      setEditingUFName('');
+      await fetchUFs();
+    } catch (error: any) {
+      console.error('Erreur modification UF:', error);
+      toast({ title: 'Erreur', description: "Impossible de modifier l'UF.", variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -262,6 +316,30 @@ const UFManagement = () => {
     document.body.removeChild(link);
   };
 
+  const exportUFsToExcel = () => {
+    try {
+      const headers = ["Nom de l'UF"];
+      const rows = (ufs || []).map(u => [u.name]);
+      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      worksheet['!cols'] = [{ wch: 25 }];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'UF');
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'ufs.xlsx');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export UF Excel error:', error);
+      toast({ title: 'Erreur', description: "Export Excel impossible", variant: 'destructive' });
+    }
+  };
+
   const handleDuplicateDialogAction = async (action: 'import-all' | 'skip-duplicates') => {
     if (!duplicateDialog) return;
 
@@ -317,6 +395,14 @@ const UFManagement = () => {
                 </Button>
                 <Button
                   variant="outline"
+                  onClick={exportUFsToExcel}
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Exporter Excel
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={downloadTemplate}
                   className="flex items-center gap-2 w-full sm:w-auto"
                 >
@@ -347,15 +433,28 @@ const UFManagement = () => {
               <div key={uf.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-2">
                   <Tag className="h-4 w-4" />
-                  <span>{uf.name}</span>
+                  {editingUFId === uf.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input value={editingUFName} onChange={(e) => setEditingUFName(e.target.value)} />
+                      <Button size="sm" onClick={saveEditUF}>Enregistrer</Button>
+                      <Button size="sm" variant="ghost" onClick={cancelEditUF}>Annuler</Button>
+                    </div>
+                  ) : (
+                    <span>{uf.name}</span>
+                  )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => deleteUF(uf.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  {editingUFId !== uf.id && (
+                    <Button variant="outline" size="sm" onClick={() => startEditUF(uf.id, uf.name)}>Modifier</Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => deleteUF(uf.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

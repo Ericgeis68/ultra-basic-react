@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Building, MapPin, Users, Upload, Download, AlertTriangle, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Plus, Trash2, Building, MapPin, Users, Upload, Download, AlertTriangle, FileSpreadsheet, Loader2, Edit } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import * as XLSX from 'xlsx';
 import { useToast } from "@/hooks/use-toast";
@@ -52,9 +52,45 @@ const FacilitiesManagement = () => {
   const [editingLocationId, setEditingLocationId] = useState<string>('');
   const [editingLocationName, setEditingLocationName] = useState<string>('');
 
+  // Cascade selection states for hierarchical view
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('all');
+  const [selectedService, setSelectedService] = useState<string>('all');
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<string>('highlight');
+  
+  // Form visibility states
+  const [showBuildingForm, setShowBuildingForm] = useState<boolean>(false);
+  const [showServiceForm, setShowServiceForm] = useState<boolean>(false);
+  const [showLocationForm, setShowLocationForm] = useState<boolean>(false);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Precompute counts per building for services and locations
+  const buildingIdToServiceCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const service of services) {
+      const key = service.building_id || '__none__';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [services]);
+
+  const buildingIdToLocationCount = useMemo(() => {
+    // Map service -> building
+    const serviceIdToBuildingId: Record<string, string | null> = {};
+    for (const s of services) {
+      serviceIdToBuildingId[s.id] = s.building_id ?? null;
+    }
+    const counts: Record<string, number> = {};
+    for (const loc of locations) {
+      const buildingId = loc.service_id ? (serviceIdToBuildingId[loc.service_id] || null) : null;
+      const key = buildingId || '__none__';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [services, locations]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -173,6 +209,28 @@ const FacilitiesManagement = () => {
     }
   };
 
+  // Vérification contextuelle des doublons
+  const checkContextualDuplicate = (name: string, type: 'services' | 'locations', contextId?: string): boolean => {
+    const normalizedName = name.trim().toLowerCase();
+    
+    switch (type) {
+      case 'services':
+        // Vérifier dans le même bâtiment
+        return services.some(item => 
+          item.name.toLowerCase() === normalizedName && 
+          item.building_id === contextId
+        );
+      case 'locations':
+        // Vérifier dans le même service
+        return locations.some(item => 
+          item.name.toLowerCase() === normalizedName && 
+          item.service_id === contextId
+        );
+      default:
+        return false;
+    }
+  };
+
   const addBuilding = async () => {
     if (!newBuilding.name.trim()) {
       toast({
@@ -204,6 +262,7 @@ const FacilitiesManagement = () => {
 
       setBuildings([...buildings, data]);
       setNewBuilding({ name: '' });
+      setShowBuildingForm(false);
       toast({
         title: "Succès",
         description: "Bâtiment créé avec succès"
@@ -227,11 +286,12 @@ const FacilitiesManagement = () => {
       return;
     }
 
-    // Check for duplicates
-    if (checkDuplicateName(newService.name, 'services')) {
+    // Check for duplicates in the same building
+    if (checkContextualDuplicate(newService.name, 'services', newService.building_id === 'none' ? null : newService.building_id)) {
+      const buildingName = buildings.find(b => b.id === newService.building_id)?.name || 'ce bâtiment';
       toast({
         title: "Doublon détecté",
-        description: `Un service avec le nom "${newService.name}" existe déjà`,
+        description: `Un service avec le nom "${newService.name}" existe déjà dans ${buildingName}`,
         variant: "destructive"
       });
       return;
@@ -251,6 +311,7 @@ const FacilitiesManagement = () => {
 
       setServices([...services, data]);
       setNewService({ name: '', building_id: '' });
+      setShowServiceForm(false);
       toast({
         title: "Succès",
         description: "Service créé avec succès"
@@ -274,11 +335,12 @@ const FacilitiesManagement = () => {
       return;
     }
 
-    // Check for duplicates
-    if (checkDuplicateName(newLocation.name, 'locations')) {
+    // Check for duplicates in the same service
+    if (checkContextualDuplicate(newLocation.name, 'locations', newLocation.service_id === 'none' ? null : newLocation.service_id)) {
+      const serviceName = services.find(s => s.id === newLocation.service_id)?.name || 'ce service';
       toast({
         title: "Doublon détecté",
-        description: `Un local avec le nom "${newLocation.name}" existe déjà`,
+        description: `Un local avec le nom "${newLocation.name}" existe déjà dans ${serviceName}`,
         variant: "destructive"
       });
       return;
@@ -298,6 +360,7 @@ const FacilitiesManagement = () => {
 
       setLocations([...locations, data]);
       setNewLocation({ name: '', service_id: '' });
+      setShowLocationForm(false);
       toast({
         title: "Succès",
         description: "Local créé avec succès"
@@ -1291,6 +1354,85 @@ const FacilitiesManagement = () => {
               <FileSpreadsheet className="h-4 w-4" />
               Modèle Excel combiné
             </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                // Exporter toutes les relations Bâtiment | Service | Local dans une seule feuille
+                try {
+                  setLoading(true);
+                  setProgressMessage('Préparation de l\'export...');
+                  const [{ data: blds }, { data: svcs }, { data: locs }] = await Promise.all([
+                    supabase.from('buildings').select('id,name').order('name'),
+                    supabase.from('services').select('id,name,building_id').order('name'),
+                    supabase.from('locations').select('id,name,service_id').order('name')
+                  ]);
+
+                  const buildingIdToServices: Record<string, { id: string; name: string }[]> = {};
+                  (svcs || []).forEach(s => {
+                    const bid = (s.building_id as string | null) || '';
+                    if (!bid) return;
+                    if (!buildingIdToServices[bid]) buildingIdToServices[bid] = [];
+                    buildingIdToServices[bid].push({ id: s.id as string, name: s.name as string });
+                  });
+
+                  const serviceIdToLocations: Record<string, { id: string; name: string }[]> = {};
+                  (locs || []).forEach(l => {
+                    const sid = (l.service_id as string | null) || '';
+                    if (!sid) return;
+                    if (!serviceIdToLocations[sid]) serviceIdToLocations[sid] = [];
+                    serviceIdToLocations[sid].push({ id: l.id as string, name: l.name as string });
+                  });
+
+                  const rows: string[][] = [];
+                  rows.push(['Bâtiment', 'Service', 'Local']);
+
+                  (blds || []).forEach(b => {
+                    const servicesForB = buildingIdToServices[b.id] || [];
+                    if (servicesForB.length === 0) {
+                      // Bâtiment sans service
+                      rows.push([b.name || '', '', '']);
+                    } else {
+                      servicesForB.forEach(s => {
+                        const locsForS = serviceIdToLocations[s.id] || [];
+                        if (locsForS.length === 0) {
+                          // Service sans local
+                          rows.push([b.name || '', s.name || '', '']);
+                        } else {
+                          locsForS.forEach(l => {
+                            rows.push([b.name || '', s.name || '', l.name || '']);
+                          });
+                        }
+                      });
+                    }
+                  });
+
+                  const wb = XLSX.utils.book_new();
+                  const ws = XLSX.utils.aoa_to_sheet(rows);
+                  ws['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 25 }];
+                  XLSX.utils.book_append_sheet(wb, ws, 'Installations');
+                  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                  const link = document.createElement('a');
+                  const url = URL.createObjectURL(blob);
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', 'installations_combine.xlsx');
+                  link.style.visibility = 'hidden';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                } catch (e) {
+                  console.error('Export combiné échoué:', e);
+                  toast({ title: 'Erreur', description: 'Export combiné impossible', variant: 'destructive' });
+                } finally {
+                  setLoading(false);
+                  setProgressMessage('');
+                }
+              }}
+              className="flex items-center gap-2 w-full sm:w-auto"
+            >
+              <Download className="h-4 w-4" />
+              Exporter Excel combiné
+            </Button>
             <input
               ref={combinedFileRef}
               type="file"
@@ -1299,12 +1441,529 @@ const FacilitiesManagement = () => {
               className="hidden"
             />
           </div>
-          <Tabs defaultValue="buildings" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs defaultValue="hierarchical" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="hierarchical">Vue Hiérarchique</TabsTrigger>
               <TabsTrigger value="buildings">Bâtiments</TabsTrigger>
               <TabsTrigger value="services">Services</TabsTrigger>
               <TabsTrigger value="locations">Locaux</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="hierarchical" className="space-y-4">
+              {/* Instructions et contrôles */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg text-blue-800">Sélection Interactive</h3>
+                    <p className="text-sm text-blue-600">Cliquez sur un bâtiment, service ou local pour filtrer les colonnes suivantes</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm">Mode d'affichage :</Label>
+                      <Select value={viewMode} onValueChange={setViewMode}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="highlight">Évidence</SelectItem>
+                          <SelectItem value="compact">Compact</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setSelectedBuilding('all');
+                        setSelectedService('all');
+                        setSelectedLocation('all');
+                      }}
+                    >
+                      Réinitialiser
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Indicateur de sélection actuelle */}
+                {(selectedBuilding !== 'all' || selectedService !== 'all' || selectedLocation !== 'all') && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <div className="text-sm text-blue-700">
+                      <span className="font-medium">Sélection :</span>
+                      {selectedBuilding !== 'all' && (
+                        <span className="ml-2">
+                          <span className="bg-blue-200 px-2 py-1 rounded text-xs font-medium">
+                            {buildings.find(b => b.id === selectedBuilding)?.name}
+                          </span>
+                        </span>
+                      )}
+                      {selectedService !== 'all' && (
+                        <span className="ml-2">
+                          <span className="bg-green-200 px-2 py-1 rounded text-xs font-medium">
+                            {services.find(s => s.id === selectedService)?.name}
+                          </span>
+                        </span>
+                      )}
+                      {selectedLocation !== 'all' && (
+                        <span className="ml-2">
+                          <span className="bg-yellow-200 px-2 py-1 rounded text-xs font-medium">
+                            {locations.find(l => l.id === selectedLocation)?.name}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Colonne Bâtiments */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-5 w-5" />
+                      <h3 className="text-lg font-semibold">Bâtiments</h3>
+                      <span className="text-sm text-gray-500">({buildings.length})</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setNewBuilding({ name: '' });
+                        setShowBuildingForm(true);
+                        setShowServiceForm(false);
+                        setShowLocationForm(false);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Ajouter
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {buildings
+                      .filter(building => selectedBuilding === 'all' || building.id === selectedBuilding)
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                      .map((building) => {
+                        const buildingServices = services.filter(s => s.building_id === building.id);
+                        const totalLocations = locations.filter(l => 
+                          buildingServices.some(s => s.id === l.service_id)
+                        ).length;
+                        
+                        const isHighlighted = viewMode === 'highlight' && selectedBuilding !== 'all' && building.id === selectedBuilding;
+                        const isCompact = viewMode === 'compact';
+                        
+                        return (
+                          <div 
+                            key={building.id} 
+                            className={`border rounded-lg p-3 ${editingBuildingId === building.id ? 'cursor-default' : 'cursor-pointer'} transition-colors ${isHighlighted ? 'bg-blue-100 border-blue-300 shadow-sm' : 'hover:bg-gray-50'} ${isCompact ? 'p-2' : ''}`}
+                            onClick={() => {
+                              if (selectedBuilding === building.id) {
+                                setSelectedBuilding('all');
+                              } else {
+                                setSelectedBuilding(building.id);
+                                setSelectedService('all');
+                                setSelectedLocation('all');
+                              }
+                            }}
+                          >
+                            <div className={`flex ${editingBuildingId === building.id ? 'flex-col items-stretch gap-2' : 'items-center justify-between'}`}>
+                              <div>
+                                {editingBuildingId === building.id ? (
+                                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <Input
+                                      value={editingBuildingName}
+                                      onChange={(e) => setEditingBuildingName(e.target.value)}
+                                      className="h-8 w-full"
+                                      placeholder="Nom du bâtiment"
+                                    />
+                                    <Button size="sm" onClick={(e) => { e.stopPropagation(); saveEditBuilding(); }}>Enregistrer</Button>
+                                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditingBuildingId(''); setEditingBuildingName(''); }}>Annuler</Button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className={`font-medium ${isHighlighted ? 'text-blue-800' : ''}`}>{building.name}</div>
+                                    <div className="text-sm text-gray-500">
+                                      {buildingServices.length} service{buildingServices.length > 1 ? 's' : ''} · {totalLocations} local{totalLocations > 1 ? 's' : ''}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              {editingBuildingId !== building.id && (
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="outline" size="sm" onClick={() => startEditBuilding(building.id, building.name)}>
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => deleteBuilding(building.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Colonne Services */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      <h3 className="text-lg font-semibold">Services</h3>
+                      <span className="text-sm text-gray-500">({services.length})</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setNewService({ 
+                          name: '', 
+                          building_id: selectedBuilding !== 'all' ? selectedBuilding : '' 
+                        });
+                        setShowBuildingForm(false);
+                        setShowServiceForm(true);
+                        setShowLocationForm(false);
+                      }}
+                      disabled={selectedBuilding === 'all'}
+                      title={selectedBuilding === 'all' ? 'Sélectionnez d\'abord un bâtiment' : 'Ajouter un service à ce bâtiment'}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Ajouter
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {services
+                      .filter(service => {
+                        // Si un bâtiment est sélectionné, vérifier que le service appartient à ce bâtiment
+                        if (selectedBuilding !== 'all') {
+                          const belongsToBuilding = service.building_id === selectedBuilding;
+                          
+                          // Si un service est aussi sélectionné, vérifier que c'est le bon service
+                          if (selectedService !== 'all') {
+                            return belongsToBuilding && service.id === selectedService;
+                          }
+                          
+                          return belongsToBuilding;
+                        }
+                        
+                        // Si seulement un service est sélectionné (sans bâtiment), filtrer par service
+                        if (selectedService !== 'all') {
+                          return service.id === selectedService;
+                        }
+                        
+                        return true;
+                      })
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                      .map((service) => {
+                        const serviceLocations = locations.filter(l => l.service_id === service.id);
+                        const buildingName = buildings.find(b => b.id === service.building_id)?.name || 'Aucun bâtiment';
+                        
+                        const isHighlighted = viewMode === 'highlight' && (
+                          (selectedBuilding !== 'all' && service.building_id === selectedBuilding) ||
+                          (selectedService !== 'all' && service.id === selectedService)
+                        );
+                        const isCompact = viewMode === 'compact';
+                        
+                        return (
+                          <div 
+                            key={service.id} 
+                            className={`border rounded-lg p-3 ${editingServiceId === service.id ? 'cursor-default' : 'cursor-pointer'} transition-colors ${isHighlighted ? 'bg-green-100 border-green-300 shadow-sm' : 'hover:bg-gray-50'} ${isCompact ? 'p-2' : ''}`}
+                            onClick={() => {
+                              if (selectedService === service.id) {
+                                setSelectedService('all');
+                              } else {
+                                setSelectedService(service.id);
+                                setSelectedLocation('all');
+                              }
+                            }}
+                          >
+                            <div className={`flex ${editingServiceId === service.id ? 'flex-col items-stretch gap-2' : 'items-center justify-between'}`}>
+                              <div>
+                                {editingServiceId === service.id ? (
+                                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <Input
+                                      value={editingServiceName}
+                                      onChange={(e) => setEditingServiceName(e.target.value)}
+                                      className="h-8 w-full"
+                                      placeholder="Nom du service"
+                                    />
+                                    <Button size="sm" onClick={(e) => { e.stopPropagation(); saveEditService(); }}>Enregistrer</Button>
+                                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditingServiceId(''); setEditingServiceName(''); }}>Annuler</Button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className={`font-medium ${isHighlighted ? 'text-green-800' : ''}`}>{service.name}</div>
+                                    <div className="text-sm text-gray-500">
+                                      {buildingName} · {serviceLocations.length} local{serviceLocations.length > 1 ? 's' : ''}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              {editingServiceId !== service.id && (
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="outline" size="sm" onClick={() => startEditService(service.id, service.name)}>
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => deleteService(service.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Colonne Locaux */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      <h3 className="text-lg font-semibold">Locaux</h3>
+                      <span className="text-sm text-gray-500">({locations.length})</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setNewLocation({ 
+                          name: '', 
+                          service_id: selectedService !== 'all' ? selectedService : '' 
+                        });
+                        setShowBuildingForm(false);
+                        setShowServiceForm(false);
+                        setShowLocationForm(true);
+                      }}
+                      disabled={selectedService === 'all'}
+                      title={selectedService === 'all' ? 'Sélectionnez d\'abord un service' : 'Ajouter un local à ce service'}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Ajouter
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {locations
+                      .filter(location => {
+                        // Si un bâtiment est sélectionné, vérifier que le local appartient à ce bâtiment
+                        if (selectedBuilding !== 'all') {
+                          const service = services.find(s => s.id === location.service_id);
+                          const belongsToBuilding = service?.building_id === selectedBuilding;
+                          
+                          // Si un service est aussi sélectionné, vérifier que c'est le bon service
+                          if (selectedService !== 'all') {
+                            return belongsToBuilding && location.service_id === selectedService;
+                          }
+                          
+                          return belongsToBuilding;
+                        }
+                        
+                        // Si seulement un service est sélectionné (sans bâtiment), filtrer par service
+                        if (selectedService !== 'all') {
+                          return location.service_id === selectedService;
+                        }
+                        
+                        // Si seulement un local est sélectionné, filtrer par local
+                        if (selectedLocation !== 'all') {
+                          return location.id === selectedLocation;
+                        }
+                        
+                        return true;
+                      })
+                      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+                      .map((location) => {
+                        const service = services.find(s => s.id === location.service_id);
+                        const building = buildings.find(b => b.id === service?.building_id);
+                        const serviceName = service?.name || 'Service inconnu';
+                        const buildingName = building?.name || 'Bâtiment inconnu';
+                        
+                        const isHighlighted = viewMode === 'highlight' && (
+                          (selectedBuilding !== 'all' && service?.building_id === selectedBuilding) ||
+                          (selectedService !== 'all' && location.service_id === selectedService) ||
+                          (selectedLocation !== 'all' && location.id === selectedLocation)
+                        );
+                        const isCompact = viewMode === 'compact';
+                        
+                        return (
+                          <div 
+                            key={location.id} 
+                            className={`border rounded-lg p-3 ${editingLocationId === location.id ? 'cursor-default' : 'cursor-pointer'} transition-colors ${isHighlighted ? 'bg-yellow-100 border-yellow-300 shadow-sm' : 'hover:bg-gray-50'} ${isCompact ? 'p-2' : ''}`}
+                            onClick={() => {
+                              if (selectedLocation === location.id) {
+                                setSelectedLocation('all');
+                              } else {
+                                setSelectedLocation(location.id);
+                              }
+                            }}
+                          >
+                            <div className={`flex ${editingLocationId === location.id ? 'flex-col items-stretch gap-2' : 'items-center justify-between'}`}>
+                              <div>
+                                {editingLocationId === location.id ? (
+                                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <Input
+                                      value={editingLocationName}
+                                      onChange={(e) => setEditingLocationName(e.target.value)}
+                                      className="h-8 w-full"
+                                      placeholder="Nom du local"
+                                    />
+                                    <Button size="sm" onClick={(e) => { e.stopPropagation(); saveEditLocation(); }}>Enregistrer</Button>
+                                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditingLocationId(''); setEditingLocationName(''); }}>Annuler</Button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className={`font-medium ${isHighlighted ? 'text-yellow-800' : ''}`}>{location.name}</div>
+                                    <div className="text-sm text-gray-500">
+                                      {serviceName} · {buildingName}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              {editingLocationId !== location.id && (
+                                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="outline" size="sm" onClick={() => startEditLocation(location.id, location.name)}>
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => deleteLocation(location.id)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions rapides en bas */}
+              <div className="border-t pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Formulaire Bâtiment */}
+                  <div className={`space-y-2 transition-all duration-200 ${showBuildingForm ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="quick-building">Ajouter un bâtiment</Label>
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                          Nouveau bâtiment
+                        </span>
+                      </div>
+                      {showBuildingForm && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setShowBuildingForm(false)}
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        id="quick-building"
+                        value={newBuilding.name}
+                        onChange={(e) => setNewBuilding({ name: e.target.value })}
+                        placeholder="Nom du bâtiment"
+                        disabled={!showBuildingForm}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={addBuilding} 
+                        size="sm"
+                        disabled={!showBuildingForm}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Formulaire Service */}
+                  <div className={`space-y-2 transition-all duration-200 ${showServiceForm ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="quick-service">Ajouter un service</Label>
+                        {selectedBuilding !== 'all' && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            → {buildings.find(b => b.id === selectedBuilding)?.name}
+                          </span>
+                        )}
+                      </div>
+                      {showServiceForm && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setShowServiceForm(false)}
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        id="quick-service"
+                        value={newService.name}
+                        onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                        placeholder="Nom du service"
+                        disabled={!showServiceForm}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={addService} 
+                        size="sm"
+                        disabled={!showServiceForm}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Formulaire Local */}
+                  <div className={`space-y-2 transition-all duration-200 ${showLocationForm ? 'opacity-100' : 'opacity-50'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="quick-location">Ajouter un local</Label>
+                        {selectedService !== 'all' && (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            → {services.find(s => s.id === selectedService)?.name}
+                          </span>
+                        )}
+                      </div>
+                      {showLocationForm && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setShowLocationForm(false)}
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        id="quick-location"
+                        value={newLocation.name}
+                        onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
+                        placeholder="Nom du local"
+                        disabled={!showLocationForm}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={addLocation} 
+                        size="sm"
+                        disabled={!showLocationForm}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
 
             <TabsContent value="buildings" className="space-y-4">
               <div className="flex flex-col md:flex-row gap-4">
@@ -1333,14 +1992,6 @@ const FacilitiesManagement = () => {
                     >
                       <Upload className="h-4 w-4" />
                       Importer CSV/Excel
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => downloadTemplate('buildings')}
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Modèle
                     </Button>
                     <Button
                       variant="outline"
@@ -1375,7 +2026,14 @@ const FacilitiesManagement = () => {
                           <Button size="sm" variant="ghost" onClick={cancelEditBuilding}>Annuler</Button>
                         </div>
                       ) : (
-                        <span>{building.name}</span>
+                        <div>
+                          <span className="font-medium">{building.name}</span>
+                          <p className="text-sm text-gray-500">
+                            {(buildingIdToServiceCount[building.id] || 0)} service{(buildingIdToServiceCount[building.id] || 0) > 1 ? 's' : ''}
+                            {' · '}
+                            {(buildingIdToLocationCount[building.id] || 0)} local{(buildingIdToLocationCount[building.id] || 0) > 1 ? 's' : ''}
+                          </p>
+                        </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -1443,14 +2101,6 @@ const FacilitiesManagement = () => {
                     >
                       <Upload className="h-4 w-4" />
                       Importer CSV/Excel
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => downloadTemplate('services')}
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Modèle
                     </Button>
                     <Button
                       variant="outline"
@@ -1556,14 +2206,6 @@ const FacilitiesManagement = () => {
                     >
                       <Upload className="h-4 w-4" />
                       Importer CSV/Excel
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => downloadTemplate('locations')}
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Modèle
                     </Button>
                     <Button
                       variant="outline"

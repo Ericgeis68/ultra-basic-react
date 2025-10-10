@@ -220,20 +220,10 @@ const EquipmentGroupsManagement = () => {
             
             // Afficher un message informatif sur la propagation
             if (result && typeof result === 'object') {
-              if (result.updated > 0 && result.skipped > 0) {
+              if (result.updated > 0) {
                 toast({
                   title: "Description mise à jour",
-                  description: `Description propagée vers ${result.updated} équipement(s). ${result.skipped} équipement(s) avec description personnalisée ont été préservés.`,
-                });
-              } else if (result.updated > 0) {
-                toast({
-                  title: "Description mise à jour",
-                  description: `Description propagée vers ${result.updated} équipement(s).`,
-                });
-              } else if (result.skipped > 0) {
-                toast({
-                  title: "Description du groupe mise à jour",
-                  description: `Tous les équipements associés (${result.skipped}) ont déjà une description personnalisée qui a été préservée.`,
+                  description: `Description du groupe propagée vers ${result.updated} équipement(s). Les descriptions individuelles ont été remplacées.`,
                 });
               }
             }
@@ -268,6 +258,9 @@ const EquipmentGroupsManagement = () => {
         description: `Le groupe ${formData.name} a été ${editingGroup ? 'mis à jour' : 'créé'} avec succès.`
       });
 
+      // Rafraîchir les équipements après la propagation de la description
+      equipments.refetch();
+      
       resetFormData();
       setOpenDialog(false);
     } catch (error: any) {

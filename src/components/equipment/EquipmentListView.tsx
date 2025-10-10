@@ -201,7 +201,7 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
       <TableCaption>Liste des équipements</TableCaption>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[100px]">Image</TableHead>
+          {listFields.image && <TableHead className="w-[100px]">Image</TableHead>}
           {renderSortableHeader('name', 'Nom')}
           {renderSortableHeader('model', 'Modèle', listFields.model)}
           {renderSortableHeader('manufacturer', 'Fabricant', listFields.manufacturer)}
@@ -229,6 +229,7 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
             
             return (
               <TableRow key={equipment.id} className={fadingIds?.has(equipment.id) ? 'transition-opacity duration-300 opacity-0' : ''}>
+                {listFields.image && (
                 <TableCell>
                   {imageUrl ? (
                     <img
@@ -246,6 +247,7 @@ const EquipmentListView: React.FC<EquipmentListViewProps> = ({
                     </div>
                   )}
                 </TableCell>
+                )}
                 <TableCell className="font-medium">{equipment.name}</TableCell>
                 {listFields.model && <TableCell>{equipment.model || 'Non spécifié'}</TableCell>}
                 {listFields.manufacturer && <TableCell>{equipment.manufacturer || 'Non spécifié'}</TableCell>}

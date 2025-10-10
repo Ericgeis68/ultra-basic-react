@@ -15,6 +15,7 @@ import Interventions from "./pages/Interventions";
 import Tasks from "./pages/Tasks";
 import Staff from "./pages/Staff";
 import Facilities from "./pages/Facilities";
+import FacilityDetail from "./pages/FacilityDetail";
 // import Reports from "./pages/Reports"; // Removed Reports import
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
@@ -219,6 +220,11 @@ const App = () => {
         <Route path="/facilities" element={
           <ProtectedRoute>
             <Layout><Facilities /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/facilities/:id" element={
+          <ProtectedRoute>
+            <Layout><FacilityDetail /></Layout>
           </ProtectedRoute>
         } />
         {/* Removed Reports route */}

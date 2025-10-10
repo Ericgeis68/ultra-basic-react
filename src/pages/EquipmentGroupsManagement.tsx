@@ -137,6 +137,7 @@ const EquipmentGroupsManagement = () => {
       }
 
       groups.refetch();
+      equipments.refetch(); // Rafraîchir les équipements après la propagation de la description
       setIsDialogOpen(false);
       setFormData(initialFormData);
       setSelectedFile(null);

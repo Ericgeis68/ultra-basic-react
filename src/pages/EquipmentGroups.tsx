@@ -227,20 +227,10 @@ const EquipmentGroupsPage = () => {
         try {
           const result: any = await junctionTableManager.propagateGroupDescriptionToEquipments(groupId);
           if (result && typeof result === 'object') {
-            if (result.updated > 0 && result.skipped > 0) {
+            if (result.updated > 0) {
               toast({
                 title: "Description mise à jour",
-                description: `Description propagée vers ${result.updated} équipement(s). ${result.skipped} équipement(s) avec description personnalisée ont été préservés.`,
-              });
-            } else if (result.updated > 0) {
-              toast({
-                title: "Description mise à jour",
-                description: `Description propagée vers ${result.updated} équipement(s).`,
-              });
-            } else if (result.skipped > 0) {
-              toast({
-                title: "Description du groupe mise à jour",
-                description: `Tous les équipements associés (${result.skipped}) ont déjà une description personnalisée qui a été préservée.`,
+                description: `Description du groupe propagée vers ${result.updated} équipement(s). Les descriptions individuelles ont été remplacées.`,
               });
             }
           }
@@ -254,6 +244,8 @@ const EquipmentGroupsPage = () => {
         description: `Le groupe ${formData.name} a été ${editingGroup ? 'mis à jour' : 'créé'} avec succès.`
       });
 
+      // Rafraîchir les données après la sauvegarde
+      // Note: Les équipements seront rafraîchis automatiquement via les hooks useCollection
       resetFormData();
       setOpenDialog(false);
     } catch (error: any) {

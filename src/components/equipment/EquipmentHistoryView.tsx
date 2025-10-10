@@ -62,6 +62,9 @@ interface EquipmentHistoryViewProps {
   updateModificationFilter: (key: string, value: any) => void;
   clearModificationFilters: () => void;
   hasActiveModificationFilters: boolean;
+  buildings?: any[];
+  services?: any[];
+  locations?: any[];
 }
 
 const fieldNameTranslations: { [key: string]: string } = {
@@ -113,7 +116,10 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
   setIsModificationFilterOpen,
   updateModificationFilter,
   clearModificationFilters,
-  hasActiveModificationFilters
+  hasActiveModificationFilters,
+  buildings = [],
+  services = [],
+  locations = []
 }) => {
   const getInterventionStatusBadge = (status: string) => {
     // Normaliser le statut pour gérer les variations
@@ -700,11 +706,26 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
     }
   };
 
-  const formatJsonValue = (value: any): string => {
+  const formatJsonValue = (value: any, fieldName?: string): string => {
     if (value === null || value === undefined) return '';
 
     try {
-      if (typeof value === 'string') return value;
+      if (typeof value === 'string') {
+        // Si c'est un ID, chercher le nom correspondant
+        if (fieldName === 'building_id' && buildings) {
+          const building = buildings.find(b => b.id === value);
+          return building ? building.name : value;
+        }
+        if (fieldName === 'service_id' && services) {
+          const service = services.find(s => s.id === value);
+          return service ? service.name : value;
+        }
+        if (fieldName === 'location_id' && locations) {
+          const location = locations.find(l => l.id === value);
+          return location ? location.name : value;
+        }
+        return value;
+      }
       return JSON.stringify(value);
     } catch (e) {
       console.error("Failed to format JSON value:", value, e);
@@ -1031,27 +1052,54 @@ const EquipmentHistoryView: React.FC<EquipmentHistoryViewProps> = ({
           </div>
         ) : equipmentHistory.length > 0 ? (
           <div className="space-y-3">
-            {equipmentHistory
-              .filter(entry =>
+            {(() => {
+              // Filtrer les entrées
+              const filteredEntries = equipmentHistory.filter(entry =>
                 entry.field_name !== 'general_update' &&
                 entry.field_name !== 'image_url' &&
                 entry.field_name !== 'imageUrl'
-              )
-              .map((entry) => (
-                <CustomCard key={entry.id} className="p-3" variant="outline">
-                  <div className="flex justify-between mb-1 text-sm text-muted-foreground">
-                    <span>{formatDateTime(entry.changed_at)}</span>
-                    {entry.changed_by && <span>Par: {entry.changed_by}</span>}
-                  </div>
-                  <p className="text-sm">
-                    Champ "<span className="font-medium">{getTranslatedFieldName(entry.field_name)}</span>" modifié :
-                    <br />
-                    De: <code className="text-xs bg-muted p-1 rounded">{formatJsonValue(entry.old_value)}</code>
-                    <br />
-                    À: <code className="text-xs bg-muted p-1 rounded">{formatJsonValue(entry.new_value)}</code>
-                  </p>
-                </CustomCard>
-              ))}
+              );
+
+              // Regrouper les modifications par timestamp et utilisateur
+              const grouped: { [key: string]: typeof filteredEntries } = {};
+              filteredEntries.forEach((entry) => {
+                const key = `${entry.changed_at}_${entry.changed_by || 'unknown'}`;
+                if (!grouped[key]) {
+                  grouped[key] = [];
+                }
+                grouped[key].push(entry);
+              });
+
+              // Convertir en tableau et trier par date décroissante
+              return Object.entries(grouped)
+                .sort(([keyA], [keyB]) => {
+                  const dateA = new Date(keyA.split('_')[0]);
+                  const dateB = new Date(keyB.split('_')[0]);
+                  return dateB.getTime() - dateA.getTime();
+                })
+                .map(([key, entries]) => {
+                  const firstEntry = entries[0];
+                  return (
+                    <CustomCard key={key} className="p-3" variant="outline">
+                      <div className="flex justify-between mb-2 text-sm text-muted-foreground">
+                        <span>{formatDateTime(firstEntry.changed_at)}</span>
+                        {firstEntry.changed_by && <span>Par: {firstEntry.changed_by}</span>}
+                      </div>
+                      <div className="space-y-2">
+                        {entries.map((entry) => (
+                          <p key={entry.id} className="text-sm">
+                            Champ "<span className="font-medium">{getTranslatedFieldName(entry.field_name)}</span>" modifié :
+                            <br />
+                            De: <code className="text-xs bg-muted p-1 rounded">{formatJsonValue(entry.old_value, entry.field_name)}</code>
+                            <br />
+                            À: <code className="text-xs bg-muted p-1 rounded">{formatJsonValue(entry.new_value, entry.field_name)}</code>
+                          </p>
+                        ))}
+                      </div>
+                    </CustomCard>
+                  );
+                });
+            })()}
           </div>
         ) : (
           <div className="text-center py-10 text-muted-foreground">

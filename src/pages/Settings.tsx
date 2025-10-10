@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, Users, Building, Wrench, Package, UserCog, Eye, Tag, Bell } from "lucide-react";
+import { Settings as SettingsIcon, Users, Building, Wrench, Package, UserCog, Eye, Tag, Bell, Paintbrush } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import UserMenuVisibilitySettings from '@/components/settings/UserMenuVisibilitySettings';
 import FacilitiesManagement from '@/components/settings/FacilitiesManagement';
@@ -9,6 +9,7 @@ import EquipmentBulkImport from '@/components/settings/EquipmentBulkImport';
 import PartsBulkImport from '@/components/settings/PartsBulkImport';
 import UserManagement from '@/components/auth/UserManagement';
 import EquipmentFieldVisibilitySettings from '@/components/settings/EquipmentFieldVisibilitySettings';
+import BrandingSettings from '@/components/settings/BrandingSettings';
 import UFManagement from '@/components/settings/UFManagement';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 
@@ -81,6 +82,11 @@ const Settings = () => {
               <span className="hidden sm:inline">Import Pièces</span>
               <span className="sm:hidden">Imp Pi</span>
             </TabsTrigger>
+            <TabsTrigger value="branding" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+              <Paintbrush className="h-4 w-4" />
+              <span className="hidden sm:inline">Branding</span>
+              <span className="sm:hidden">Brand</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -139,6 +145,12 @@ const Settings = () => {
         <TabsContent value="parts-import" className="space-y-4 sm:space-y-6">
           <div className="px-3 sm:px-0">
             <PartsBulkImport />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="branding" className="space-y-4 sm:space-y-6">
+          <div className="px-3 sm:px-0">
+            <BrandingSettings />
           </div>
         </TabsContent>
       </Tabs>

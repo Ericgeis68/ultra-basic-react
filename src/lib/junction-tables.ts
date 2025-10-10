@@ -182,8 +182,13 @@ export const junctionTableManager = {
    * Propage la description d'un groupe vers tous ses équipements associés
    * qui n'ont pas déjà une description personnalisée.
    * @param groupId L'ID du groupe.
+   * @returns Statistiques de la propagation
    */
-  async propagateGroupDescriptionToEquipments(groupId: string): Promise<void> {
+  async propagateGroupDescriptionToEquipments(groupId: string): Promise<{
+    updated: number;
+    skipped: number;
+    skippedEquipments: any[];
+  }> {
     try {
       // Récupérer la description du groupe
       const { data: groupData } = await supabase
@@ -195,7 +200,11 @@ export const junctionTableManager = {
       const groupDescription = (groupData as any)?.description as string | null | undefined;
       if (!groupDescription || String(groupDescription).trim().length === 0) {
         console.log('Aucune description à propager pour le groupe:', groupId);
-        return;
+        return {
+          updated: 0,
+          skipped: 0,
+          skippedEquipments: []
+        };
       }
 
       // Récupérer tous les équipements associés à ce groupe
@@ -206,7 +215,11 @@ export const junctionTableManager = {
 
       if (!relations || relations.length === 0) {
         console.log('Aucun équipement associé au groupe:', groupId);
-        return;
+        return {
+          updated: 0,
+          skipped: 0,
+          skippedEquipments: []
+        };
       }
 
       const equipmentIds = relations.map(r => r.equipment_id);
@@ -226,20 +239,11 @@ export const junctionTableManager = {
         .filter(g => g.description && String(g.description).trim().length > 0)
         .map(g => String(g.description).trim());
 
-      // Séparer les équipements selon leur statut de description
-      const equipmentsWithPersonalDesc = [];
-      const equipmentsToUpdate = [];
+      // Mettre à jour TOUS les équipements du groupe (priorité à la description du groupe)
+      const equipmentsToUpdate = equipmentIds;
+      const equipmentsWithPersonalDesc = []; // Plus de préservation des descriptions personnalisées
       
-      for (const eq of equipmentsData || []) {
-        const currentDesc = eq.description ? String(eq.description).trim() : '';
-        if (!currentDesc || groupDescriptions.includes(currentDesc)) {
-          // Pas de description OU description qui correspond à une description de groupe existante
-          equipmentsToUpdate.push(eq.id);
-        } else {
-          // Description personnalisée qui ne correspond à aucun groupe
-          equipmentsWithPersonalDesc.push(eq);
-        }
-      }
+      console.log(`Propagation forcée de la description du groupe vers ${equipmentsToUpdate.length} équipements`);
 
       // Mettre à jour les équipements appropriés
       if (equipmentsToUpdate.length > 0) {
@@ -264,7 +268,12 @@ export const junctionTableManager = {
       };
     } catch (error) {
       console.error('Erreur lors de la propagation de la description du groupe:', error);
-      throw error;
+      // Retourner des statistiques vides en cas d'erreur
+      return {
+        updated: 0,
+        skipped: 0,
+        skippedEquipments: []
+      };
     }
   },
 
