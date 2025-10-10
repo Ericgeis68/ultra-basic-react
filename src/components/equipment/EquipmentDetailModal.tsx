@@ -710,7 +710,7 @@ const EquipmentDetailModal: React.FC<EquipmentDetailModalProps> = ({
                 <div className="space-y-2">
                   <Label htmlFor="location_id">Local</Label>
                    <Select
-                    value={formData.location_id || ''}
+                    value={selectedServiceId && formData.location_id ? formData.location_id : ''}
                     onValueChange={handleLocationChange}
                     disabled={!selectedServiceId || filteredLocations.length === 0}
                   >
